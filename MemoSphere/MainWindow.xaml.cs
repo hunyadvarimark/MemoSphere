@@ -1,92 +1,126 @@
-﻿using System.Windows;
-using Core.Interfaces;
+﻿
 using Core.Entities;
-using Core.Context;
-using Core.Repositories;
-using MemoSphere.Core.Interfaces;
+using Core.Interfaces.Services;
+using System.Windows;
+using WPF.Utilities;
+using WPF.ViewModels;
 
 namespace MemoSphere.WPF
 {
     public partial class MainWindow : Window
     {
-        private readonly IQuestionService _questionService;
-        private readonly IAnswerService _answerService;
-        private readonly MemoSphereDbContext _dbContext;
-        private readonly INoteRepository _noteRepository;
-        private readonly ITopicRepository _topicRepository;
-        private readonly ISubjectRepository _subjectRepository;
-        private readonly INoteChunkRepository _noteChunkRepository;
+        private readonly ISubjectService _subjectService;
+        private readonly ITopicService _topicService;
+        private readonly INoteService _noteService;
 
         public MainWindow(
-            IQuestionService questionService,
-            IAnswerService answerService,
-            MemoSphereDbContext dbContext,
-            INoteRepository noteRepository,
-            ITopicRepository topicRepository,
-            ISubjectRepository subjectRepository,
-            INoteChunkRepository noteChunkRepository)
-
+            MainViewModel viewModel,
+            ISubjectService subjectService,
+            ITopicService topicService, 
+            INoteService noteService)
         {
             InitializeComponent();
 
-            _questionService = questionService;
-            _answerService = answerService;
-            _dbContext = dbContext;
-            _noteRepository = noteRepository;
-            _topicRepository = topicRepository;
-            _subjectRepository = subjectRepository;
-            _noteChunkRepository = noteChunkRepository;
+            _subjectService = subjectService;
+            _topicService = topicService;
+            _noteService = noteService;
 
-            AddTestNoteAsync();
+            DataContext = viewModel;
+
+            _ = InitializeDataAndRefreshAsync(viewModel);
         }
-
-        private async Task AddTestNoteAsync()
-        {
-            // Ellenőrizd, hogy az 1-es azonosítójú Note létezik-e már.
-            // Ha nem, akkor hozzáadjuk az összes teszt adatot.
-            if (await _noteRepository.GetByIdAsync(1) == null)
-            {
-                // 1. Lépés: Hozd létre és add hozzá a Subject-et.
-                var testSubject = new Subject { Name = "Science" };
-                await _subjectRepository.AddAsync(testSubject);
-                await _dbContext.SaveChangesAsync();
-
-                // 2. Lépés: Hozd létre és add hozzá a Topic-ot.
-                // Csatold a Topic-ot a Subject-hez (az entitást is, nem csak az ID-t).
-                var testTopic = new Topic { Name = "Physics", Subject = testSubject };
-                await _topicRepository.AddAsync(testTopic);
-                await _dbContext.SaveChangesAsync();
-
-                // 3. Lépés: Hozd létre és add hozzá a Note-ot.
-                // Csatold a Note-ot a Topic-hoz.
-                var testNote = new Note
-                {
-                    Content = "Einstein's theory of relativity has two main parts: special relativity and general relativity. Special relativity deals with the relationship between space and time for objects moving at a constant velocity. General relativity expands on this to include gravity.",
-                    Topic = testTopic
-                };
-                await _noteRepository.AddAsync(testNote);
-                await _dbContext.SaveChangesAsync();
-
-                var testNoteChunk = new NoteChunk
-                {
-                    Content = testNote.Content,
-                    NoteId = testNote.Id
-                };
-                await _noteChunkRepository.AddAsync(testNoteChunk); // Add the chunk
-                await _dbContext.SaveChangesAsync(); // Save the new chunk
-            }
-        }
-
-        private async void Button_Click(object sender, RoutedEventArgs e)
+        private async Task InitializeDataAndRefreshAsync(MainViewModel mainViewModel)
         {
             try
             {
-                await _questionService.GenerateAndSaveQuestionsAsync(1);
-                MessageBox.Show("Kérdések sikeresen generálva és mentve lettek!", "Siker", MessageBoxButton.OK, MessageBoxImage.Information);
+                await EnsureTestDataExistsAsync();
+
+                if (mainViewModel.HierarchyVM?.LoadSubjectsCommand is AsyncCommand<object> loadSubjectsCommand)
+                {
+                    if (loadSubjectsCommand.CanExecute(null))
+                    {
+                        await loadSubjectsCommand.ExecuteAsync(null);
+                    }
+                }
+
+                await Task.Delay(100);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Hiba történt: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Alkalmazás inicializálási hiba: {ex.Message}");
+            }
+        }
+
+        private async Task EnsureTestDataExistsAsync()
+        {
+            try
+            {
+                // A mezőket használjuk, amiket a konstruktorban injektáltunk
+                var anySubjectExists = (await _subjectService.GetAllSubjectsAsync()).Any();
+
+                if (anySubjectExists)
+                {
+                    return;
+                }
+
+                // ----------------------------------------------------
+                // 🏆 1. TÁRGY LÉTREHOZÁSA (Science)
+                // ----------------------------------------------------
+                var scienceSubject = await _subjectService.AddSubjectAsync("Science");
+                if (scienceSubject == null) return;
+
+                // 1.1 TÉMAKÖR LÉTREHOZÁSA A Science-hez (Physics)
+                var tempTopic = new Topic
+                {
+                    Title = "Physics",
+                    SubjectId = scienceSubject.Id
+                };
+                await _topicService.AddTopicAsync(tempTopic);
+
+                var physicsTopic = (await _topicService.GetTopicBySubjectIdAsync(scienceSubject.Id))
+                                                         .FirstOrDefault(t => t.Title == "Physics");
+                if (physicsTopic == null) return;
+
+                // 1.2 JEGYZET LÉTREHOZÁSA a Physics-hez
+                var physicsNote = new Note
+                {
+                    Title = "Einstein's Theory of Relativity",
+                    Content = "Einstein's theory of relativity has two main parts: special relativity and general relativity...",
+                    TopicId = physicsTopic.Id,
+                };
+                await _noteService.AddNoteAsync(physicsNote);
+
+
+                // ----------------------------------------------------
+                // 🏆 2. TÁRGY LÉTREHOZÁSA (History)
+                // ----------------------------------------------------
+                var historySubject = await _subjectService.AddSubjectAsync("History");
+                if (historySubject == null) return;
+
+                // 2.1 TÉMAKÖR LÉTREHOZÁSA a History-hoz (Ancient Rome)
+                tempTopic = new Topic
+                {
+                    Title = "Ancient Rome",
+                    SubjectId = historySubject.Id
+                };
+                await _topicService.AddTopicAsync(tempTopic);
+
+                var romeTopic = (await _topicService.GetTopicBySubjectIdAsync(historySubject.Id))
+                                                     .FirstOrDefault(t => t.Title == "Ancient Rome");
+                if (romeTopic == null) return;
+
+                // 2.2 JEGYZET LÉTREHOZÁSA az Ancient Rome-hoz
+                var romeNote = new Note
+                {
+                    Title = "The Fall of the Western Roman Empire",
+                    Content = "The traditional date for the fall of the Western Roman Empire is 476 AD, when the last emperor, Romulus Augustulus, was deposed...",
+                    TopicId = romeTopic.Id,
+                };
+                await _noteService.AddNoteAsync(romeNote);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Tesztadat feltöltési hiba: {ex.Message}");
             }
         }
     }

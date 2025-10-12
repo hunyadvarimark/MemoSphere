@@ -1,14 +1,14 @@
-﻿using Core.Context;
-using Core.Interfaces;
-using Core.Repositories;
-using Core.Services;
-using MemoSphere.Core.Interfaces;
+﻿using Data.Context;
+using Core.Interfaces.Services;
+using Data.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.Windows;
-using Microsoft.EntityFrameworkCore;
 using System.IO;
+using System.Windows;
+using WPF.Views;
+using WPF.ViewModels;
 
 namespace MemoSphere.WPF
 {
@@ -34,18 +34,6 @@ namespace MemoSphere.WPF
                         options.UseSqlite($"Data Source={dbPath}");
                     });
 
-
-
-                    // Add Repositories
-                    services.AddTransient<IUnitOfWork, UnitOfWork>();
-                    services.AddTransient<IQuestionRepository, QuestionRepository>();
-                    services.AddTransient<IAnswerRepository, AnswerRepository>();
-                    services.AddTransient<ITopicRepository, TopicRepository>();
-                    services.AddTransient<INoteRepository, NoteRepository>();
-                    services.AddTransient<ISubjectRepository, SubjectRepository>();
-                    services.AddTransient<INoteChunkRepository, NoteChunkRepository>();
-
-
                     services.AddTransient<IQuestionGeneratorService, GeminiService>(provider =>
                     {
                         var configuration = provider.GetRequiredService<IConfiguration>();
@@ -60,8 +48,20 @@ namespace MemoSphere.WPF
                     });
 
                     // Add Services
+                    services.AddTransient<IUnitOfWork, UnitOfWork>();
                     services.AddTransient<IQuestionService, QuestionService>();
                     services.AddTransient<IAnswerService, AnswerService>();
+                    services.AddTransient<INoteService, NoteService>();
+                    services.AddTransient<ITopicService, TopicService>();
+                    services.AddTransient<ISubjectService, SubjectService>();
+
+                    // Add ViewModels
+                    services.AddSingleton<NoteDetailViewModel>();
+                    services.AddSingleton<HierarchyViewModel>();
+                    services.AddSingleton<SubjectDetailViewModel>();
+                    services.AddSingleton<MainViewModel>();
+                    services.AddSingleton<TopicDetailViewModel>();
+
                 })
                 .Build();
         }

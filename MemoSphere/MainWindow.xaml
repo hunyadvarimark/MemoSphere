@@ -1,12 +1,194 @@
 ﻿<Window x:Class="MemoSphere.WPF.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:MemoSphere.WPF"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        xmlns:views="clr-namespace:WPF.Views" 
+        xmlns:vm="clr-namespace:WPF.ViewModels" 
+        xmlns:converters="clr-namespace:WPF.Utilities"
+        
+        Title="MemoSphere" Height="600" Width="1000">
+
+    <Window.Resources>
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+
+        <DataTemplate DataType="{x:Type vm:TopicDetailViewModel}">
+            <views:TopicDetailView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:NoteDetailViewModel}">
+            <views:NoteDetailView />
+        </DataTemplate>
+    </Window.Resources>
+
     <Grid>
-        <Button Content="Generate Questions" HorizontalAlignment="Center" VerticalAlignment="Center" Click="Button_Click"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Grid Grid.Column="0" Margin="5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Tárgyak" FontWeight="Bold" Margin="0,0,0,5"/>
+            <ListBox 
+                Grid.Row="1"
+                ItemsSource="{Binding HierarchyVM.Subjects}" 
+                SelectedItem="{Binding HierarchyVM.SelectedSubject}"
+                Margin="0,0,0,10">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" 
+                                       Text="{Binding Title}" 
+                                       FontWeight="Bold" 
+                                       VerticalAlignment="Center" 
+                                       Margin="0,0,10,0"/>
+
+                            <Button Grid.Column="1" 
+                                    Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=DataContext.HierarchyVM.EditSubjectCommand}"
+                                    CommandParameter="{Binding}" 
+                                    Content="✎"  
+                                    Width="20" Height="20" Margin="0,0,5,0"
+                                    ToolTip="Tantárgy szerkesztése"/>
+
+                            <Button Grid.Column="2" 
+                                    Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=DataContext.HierarchyVM.DeleteSubjectCommand}"
+                                    CommandParameter="{Binding}"
+                                    Content="🗑️" 
+                                    Width="20" Height="20"
+                                    ToolTip="Tantárgy törlése"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <TextBlock Grid.Row="2" Text="Témakörök" FontWeight="Bold" Margin="0,0,0,5"/>
+            <ListBox Grid.Row="3" 
+                     ItemsSource="{Binding HierarchyVM.Topics}" 
+                     SelectedItem="{Binding HierarchyVM.SelectedTopic}"
+                     Margin="0,0,0,10">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" 
+                                       Text="{Binding Title}" 
+                                       VerticalAlignment="Center" 
+                                       Margin="0,0,10,0"/>
+
+                            <Button Grid.Column="1" 
+                                Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=DataContext.HierarchyVM.EditTopicCommand}"
+                                CommandParameter="{Binding}" 
+                                Content="✎"  
+                                Width="20" Height="20" Margin="0,0,5,0"
+                                ToolTip="Témakör szerkesztése"/>
+
+                            <Button Grid.Column="2" 
+                                Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}, Path=DataContext.HierarchyVM.DeleteTopicCommand}"
+                                CommandParameter="{Binding}"
+                                Content="🗑️" 
+                                Width="20" Height="20"
+                                ToolTip="Témakör törlése"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Button Grid.Row="4"
+                    Content="Új Témakör Hozzáadása"
+                    Command="{Binding HierarchyVM.AddTopicCommand}"
+                    Margin="0, 5, 0, 10"
+                    />
+            <Button Grid.Row="5"
+                    Content="Új Tárgy Hozzáadása"
+                    Command="{Binding HierarchyVM.AddSubjectCommand}"
+                    Margin="0, 15, 0, 0"/>
+
+        </Grid>
+
+        <Grid Grid.Column="1" Margin="5">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="200" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Jegyzetek" FontWeight="Bold" Margin="0,0,0,5"/>
+
+            <ListBox Grid.Row="1" 
+                     ItemsSource="{Binding HierarchyVM.Notes}" 
+                     SelectedItem="{Binding HierarchyVM.SelectedNote}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                <TextBlock Text="{Binding HierarchyVM.SelectedNote.Title, FallbackValue='Válassz jegyzetet a megtekintéshez'}" FontWeight="ExtraBold" FontSize="16" Margin="0,0,0,5"/>
+
+                <TextBox Text="{Binding HierarchyVM.SelectedNote.Content, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" VerticalScrollBarVisibility="Auto"/>
+            </StackPanel>
+
+            <Border Grid.Row="3" BorderBrush="LightGray" BorderThickness="1" Padding="10" Margin="0,20,0,0">
+                <ContentControl Content="{Binding HierarchyVM.AddNoteVM}" />
+            </Border>
+        </Grid>
+
+        <Grid Grid.ColumnSpan="2" 
+              Visibility="{Binding HierarchyVM.IsAddingSubject, Converter={StaticResource BooleanToVisibilityConverter}}"
+              Background="#B0000000"
+              Panel.ZIndex="10" 
+              VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+            <Border Width="400" Height="250"
+                    Background="White"
+                    CornerRadius="10"
+                    Padding="15"
+                    BorderBrush="DarkGray"
+                    BorderThickness="2"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <views:SubjectDetailView DataContext="{Binding HierarchyVM.SubjectDetailVM}" />
+            </Border>
+        </Grid>
+
+        <Grid Grid.ColumnSpan="2" 
+              Visibility="{Binding HierarchyVM.IsAddingTopic, Converter={StaticResource BooleanToVisibilityConverter}}"
+              Background="#B0000000"
+              Panel.ZIndex="10" 
+              VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+
+            <Border Width="400" Height="250"
+                    Background="White"
+                    CornerRadius="10"
+                    Padding="15"
+                    BorderBrush="DarkGray"
+                    BorderThickness="2"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+
+                <views:TopicDetailView DataContext="{Binding HierarchyVM.TopicDetailVM}" />
+
+            </Border>
+
+        </Grid>
+
     </Grid>
 </Window>

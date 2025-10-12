@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemoSphere", "MemoSphere\Me
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemoSphere.Core", "MemoSphere.Core\MemoSphere.Core.csproj", "{EF98333B-38A5-4C22-AECE-5638159CFDF5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemoSphere.Data", "Data\MemoSphere.Data.csproj", "{77A00375-DFEF-4CAD-A2E1-B074CEA57ACE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,6 +26,10 @@ Global
 		{EF98333B-38A5-4C22-AECE-5638159CFDF5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EF98333B-38A5-4C22-AECE-5638159CFDF5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EF98333B-38A5-4C22-AECE-5638159CFDF5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77A00375-DFEF-4CAD-A2E1-B074CEA57ACE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77A00375-DFEF-4CAD-A2E1-B074CEA57ACE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77A00375-DFEF-4CAD-A2E1-B074CEA57ACE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77A00375-DFEF-4CAD-A2E1-B074CEA57ACE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

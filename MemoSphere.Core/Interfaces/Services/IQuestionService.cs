@@ -1,0 +1,12 @@
+﻿using Core.Entities;
+using Core.Enums;
+
+namespace Core.Interfaces.Services
+{
+    public interface IQuestionService
+    {
+        Task<IEnumerable<Question>> GetQuestionsByTopicIdAsync(int topicId);
+        Task DeleteQuestionAsync(int id);
+        Task<bool> GenerateAndSaveQuestionsAsync(int noteId, QuestionType type);
+    }
+}
