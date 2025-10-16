@@ -11,7 +11,7 @@ namespace Core.Interfaces.Services
 
         Task<Topic> AddTopicAsync(Topic topic);
         Task DeleteTopicAsync(int id);
-        Task UpdateTopicAsync(Topic topic);
+        Task<Topic> UpdateTopicAsync(Topic topic);
         Task<bool> TopicExistsAsync(string title, int subjectId, int? excludeId = null);
     }
 }

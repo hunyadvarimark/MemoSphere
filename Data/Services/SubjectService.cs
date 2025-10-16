@@ -93,10 +93,11 @@ namespace Data.Services
         }
 
         // Update a subject
-        public async Task UpdateSubjectAsync(Subject subject)
+        public async Task<Subject> UpdateSubjectAsync(Subject subject)
         {
             _unitOfWork.Subjects.Update(subject);
             await _unitOfWork.SaveChangesAsync();
+            return subject;
         }
     }
 }

@@ -10,5 +10,6 @@ namespace Core.Entities
         public bool IsCorrect { get; set; }
         public int QuestionId { get; set; }
         public Question Question { get; set; }
+        public string? SampleAnswer { get; set; }
     }
 }

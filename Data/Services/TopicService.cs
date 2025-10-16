@@ -81,7 +81,7 @@ namespace Data.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task UpdateTopicAsync(Topic topic)
+        public async Task<Topic> UpdateTopicAsync(Topic topic)  // Visszaad Topic-ot a könnyebbségért
         {
             if (topic is null)
             {
@@ -102,6 +102,10 @@ namespace Data.Services
 
             _unitOfWork.Topics.Update(topic);
             await _unitOfWork.SaveChangesAsync();
+
+            await _unitOfWork.Topics.ReloadAsync(topic);
+
+            return topic;
         }
 
 

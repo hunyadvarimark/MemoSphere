@@ -13,7 +13,7 @@ namespace Data.Services
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<int> AddNoteAsync(Note note)
+        public async Task<Note> AddNoteAsync(Note note)
         {
             if (string.IsNullOrWhiteSpace(note.Content))
             {
@@ -22,16 +22,13 @@ namespace Data.Services
 
             if (note.TopicId <= 0)
             {
-                //throw new ArgumentException("A téma azonosítója érvénytelen.", nameof(note.TopicId));
-                // For now, we assign a default TopicId. In a real application, you might want to handle this differently.
-                note.TopicId = 1; // Default topic ID
+                throw new ArgumentException("A jegyzetnek érvényes témakörhöz kell tartoznia.", nameof(note.TopicId));
             }
 
             await _unitOfWork.Notes.AddAsync(note);
             await _unitOfWork.SaveChangesAsync();
 
-
-            //chuking the note content into smaller parts for better processing
+            // chunking the note content into smaller parts for better processing
             var chunks = SplitIntoChunks(note.Content, chunkSize: 2000);
 
             foreach (var chunkText in chunks)
@@ -45,7 +42,7 @@ namespace Data.Services
             }
 
             await _unitOfWork.SaveChangesAsync();
-            return note.Id;
+            return note;
         }
 
         public async Task<IEnumerable<Note>> GetNotesByTopicIdAsync(int topicId)
@@ -75,7 +72,7 @@ namespace Data.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task UpdateNoteAsync(Note note)
+        public async Task<Note> UpdateNoteAsync(Note note)
         {
             if (string.IsNullOrWhiteSpace(note.Content))
             {
@@ -87,13 +84,47 @@ namespace Data.Services
             {
                 throw new ArgumentException("A jegyzet nem található.", nameof(note.Id));
             }
+                noteToUpdate.Content = note.Content;
+            if (!string.IsNullOrWhiteSpace(note.Title))
+            {
+                noteToUpdate.Title = note.Title;
+            }
+            if (note.TopicId > 0)
+            {
+                noteToUpdate.TopicId = note.TopicId;
+            }
 
-            noteToUpdate.Content = note.Content;
+            // Remove existing chunks for this note
+            var existingChunks = (await _unitOfWork.NoteChunks.GetFilteredAsync(nc => nc.NoteId == note.Id))?.ToList();
+            if (existingChunks != null && existingChunks.Any())
+            {
+                _unitOfWork.NoteChunks.RemoveRange(existingChunks);
+            }
+
+            // Create new chunks from updated content
+            var chunks = SplitIntoChunks(note.Content, chunkSize: 2000);
+            foreach (var chunkText in chunks)
+            {
+                var noteChunk = new NoteChunk
+                {
+                    Content = chunkText,
+                    NoteId = noteToUpdate.Id
+                };
+                await _unitOfWork.NoteChunks.AddAsync(noteChunk);
+            }
+
             await _unitOfWork.SaveChangesAsync();
+
+            return noteToUpdate;
         }
 
         private IEnumerable<string> SplitIntoChunks(string text, int chunkSize)
         {
+            if (string.IsNullOrEmpty(text))
+            {
+                yield break;
+            }
+
             for (int i = 0; i < text.Length; i += chunkSize)
             {
                 yield return text.Substring(i, Math.Min(chunkSize, text.Length - i));

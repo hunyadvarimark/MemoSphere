@@ -10,6 +10,6 @@ namespace Core.Interfaces.Services
         Task<Subject> AddSubjectAsync(string title);
         Task DeleteSubjectAsync(int id);
         Task<bool> SubjectExistsAsync(string title, int? excludeId = null);
-        Task UpdateSubjectAsync(Subject subject);
+        Task<Subject> UpdateSubjectAsync(Subject subject);
     }
 }

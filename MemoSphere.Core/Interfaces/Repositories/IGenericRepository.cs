@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using Core.Entities;
+using System.Linq.Expressions;
 
 namespace Core.Interfaces.Repositories
 {
@@ -16,5 +17,7 @@ namespace Core.Interfaces.Repositories
                                         string includeProperties = null);
         Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate);
         void Update(T entity);
+        Task ReloadAsync(T entity);
+        Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
     }
 }

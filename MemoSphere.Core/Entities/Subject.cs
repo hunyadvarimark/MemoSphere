@@ -4,7 +4,6 @@ namespace Core.Entities
 {
     public class Subject
     {
-    
         public int Id { get; set; }
         
         [Required]

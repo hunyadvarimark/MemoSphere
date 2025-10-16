@@ -25,7 +25,6 @@ namespace Data.Services
             _unitOfWork.Questions.Remove(questionToDelete);
             await _unitOfWork.SaveChangesAsync();
         }
-
         public async Task<bool> GenerateAndSaveQuestionsAsync(int noteId, QuestionType type)
         {
             var note = await _unitOfWork.Notes.GetByIdAsync(noteId);
@@ -43,12 +42,11 @@ namespace Data.Services
 
             foreach (var chunk in chunks)
             {
-                // **1. Hiba javítása: Átadjuk a típust!**
-                var qaPairs = await _questionGeneratorService.GenerateQuestionsAsync(
-                    chunk.Content,
-                    type, // <<== Ezt adjuk át!
-                    "gemini-2.5-flash");
+                //var qaPairs = await _questionGeneratorService.GenerateQuestionsAsync(chunk.Content, type, "gemini-2.5-flash");
 
+                var ollamaModelName = "gemma3:12b"; // VAGY a letöltött modell neve (pl. "mistral:latest")
+                var qaPairs = await _questionGeneratorService.GenerateQuestionsAsync(chunk.Content, type, ollamaModelName);
+                
                 if (qaPairs == null || !qaPairs.Any())
                 {
                     Console.WriteLine("Az API nem generált kérdéseket.");
@@ -57,64 +55,53 @@ namespace Data.Services
 
                 foreach (var pair in qaPairs)
                 {
-                    // **2. Csak a Feleletválasztós típushoz generálunk hibás válaszokat!**
                     List<string> wrongAnswers = new List<string>();
                     if (type == QuestionType.MultipleChoice)
                     {
-                        wrongAnswers = await _questionGeneratorService.GenerateWrongAnswersAsync(
-                           pair.Answer,
-                           chunk.Content,
-                           "gemini-2.5-flash");
-
-                        if (wrongAnswers == null || !wrongAnswers.Any())
+                        wrongAnswers = await _questionGeneratorService.GenerateWrongAnswersAsync(pair.Answer, chunk.Content, "gemini-2.5-flash");
+                        if (wrongAnswers == null || wrongAnswers.Count < 2)
                         {
-                            Console.WriteLine("Az API nem generált rossz válaszokat.");
-                            // Feleletválasztós kvíz esetében kihagyhatjuk, ha nincs 3 rossz válasz.
+                            Console.WriteLine("Nincs elég rossz válasz generálva, kihagyjuk ezt a kérdést.");
                             continue;
                         }
                     }
-                    // Kifejtős és Eldöntendő típusoknál a 'wrongAnswers' üres marad.
+                    else if (type == QuestionType.TrueFalse)
+                    {
+                        // Ha Igaz/Hamis, hozzáadjuk a hiányzó, ellentétes opciót.
+                        // Feltételezzük, hogy a pair.Answer a helyes válasz ('IGAZ' vagy 'HAMIS')
+                        if (pair.Answer.Equals("IGAZ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            wrongAnswers.Add("HAMIS");
+                        }
+                        else if (pair.Answer.Equals("HAMIS", StringComparison.OrdinalIgnoreCase))
+                        {
+                            wrongAnswers.Add("IGAZ");
+                        }
+                    }
 
                     var question = new Question
                     {
                         TopicId = note.TopicId,
                         Text = pair.Question,
-                        QuestionType = type, // <<== Beállítjuk a menteni kívánt típust!
+                        QuestionType = type,
                         SourceNoteId = noteId,
                         Answers = new List<Answer>()
                     };
 
-                    // **3. Kifejtős kérdések kezelése (csak a helyes válasz)**
-                    if (type == QuestionType.ShortAnswer || type == QuestionType.TrueFalse)
+                    // Közös helyes válasz hozzáadása
+                    var correctAnswer = new Answer { Text = pair.Answer, IsCorrect = true };
+                    if (type == QuestionType.ShortAnswer)
                     {
-                        // ShortAnswer és True/False típusoknál csak a helyes válasz kell, 
-                        // nincs szükség a többi Answer Entitásra a feleletválasztós logika szerint.
-                        // De a mentéshez eltároljuk a helyes választ a DB Answer táblájában.
-                        var correctAnswer = new Answer
-                        {
-                            Text = pair.Answer,
-                            IsCorrect = true
-                        };
-                        question.Answers.Add(correctAnswer);
+                        correctAnswer.SampleAnswer = pair.Answer;  // Csak ShortAnswer-nél töltsd ki
                     }
+                    question.Answers.Add(correctAnswer);
 
-                    // **4. Feleletválasztós kérdések kezelése (helyes + rossz válaszok)**
-                    else if (type == QuestionType.MultipleChoice)
+                    // Hibás válaszok hozzáadása (csak MultipleChoice)
+                    if (type == QuestionType.MultipleChoice || type == QuestionType.TrueFalse)
                     {
-                        var correctAnswer = new Answer
-                        {
-                            Text = pair.Answer,
-                            IsCorrect = true
-                        };
-                        question.Answers.Add(correctAnswer);
-
                         foreach (var wrongAnswerText in wrongAnswers)
                         {
-                            var wrongAnswer = new Answer
-                            {
-                                Text = wrongAnswerText,
-                                IsCorrect = false
-                            };
+                            var wrongAnswer = new Answer { Text = wrongAnswerText, IsCorrect = false };
                             question.Answers.Add(wrongAnswer);
                         }
                     }
@@ -122,7 +109,6 @@ namespace Data.Services
                     await _unitOfWork.Questions.AddAsync(question);
                 }
             }
-            // Az összes változás mentése a végén
             await _unitOfWork.SaveChangesAsync();
             return true;
         }
@@ -133,7 +119,16 @@ namespace Data.Services
             {
                 throw new ArgumentException("A téma azonosítója érvénytelen.", nameof(topicId));
             }
-            return await _unitOfWork.Questions.GetFilteredAsync(n => n.TopicId == topicId);
+            return await _unitOfWork.Questions.GetFilteredAsync(q => q.TopicId == topicId);
+        }
+        public async Task<IEnumerable<Question>> GetQuestionsForNoteAsync(int noteId)
+        {
+            if (noteId <= 0)
+            {
+                throw new ArgumentException("A jegyzet azonosítója érvénytelen.", nameof(noteId));
+            }
+
+            return await _unitOfWork.Questions.GetFilteredAsync(filter: q => q.SourceNoteId == noteId);
         }
     }
 }

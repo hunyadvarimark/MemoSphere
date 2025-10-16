@@ -18,6 +18,8 @@ namespace Core.Entities
         public Note SourceNote { get; set; }
 
         public ICollection<Answer> Answers { get; set; }
+        public bool IsActive { get; set; } = true;
+        public int DifficultyLevel { get; set; } 
 
     }
 }

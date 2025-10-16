@@ -35,13 +35,7 @@ namespace MemoSphere.WPF
             {
                 await EnsureTestDataExistsAsync();
 
-                if (mainViewModel.HierarchyVM?.LoadSubjectsCommand is AsyncCommand<object> loadSubjectsCommand)
-                {
-                    if (loadSubjectsCommand.CanExecute(null))
-                    {
-                        await loadSubjectsCommand.ExecuteAsync(null);
-                    }
-                }
+                await mainViewModel.InitializeAsync();
 
                 await Task.Delay(100);
             }

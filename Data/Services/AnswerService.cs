@@ -1,4 +1,5 @@
-﻿using Core.Interfaces;
+﻿using Core.Entities;
+using Core.Interfaces;
 using Core.Interfaces.Services;
 
 namespace Data.Services
@@ -28,6 +29,14 @@ namespace Data.Services
             }
 
             return false;
+        }
+        public async Task<IEnumerable<Answer>> GetAnswersByQuestionIdAsync(int questionId)
+        {
+
+            var answers = await _unitOfWork.Answers.FindAsync(a => a.QuestionId == questionId);
+
+
+            return answers ?? Enumerable.Empty<Answer>();
         }
     }
 }
