@@ -1,5 +1,6 @@
 ﻿using WPF.ViewModels.Notes;
 using WPF.ViewModels.Questions;
+using WPF.ViewModels.Quiz;
 using WPF.ViewModels.Subjects;
 using WPF.ViewModels.Topics;
 
@@ -10,19 +11,22 @@ public class HierarchyCoordinator
     private readonly NoteListViewModel _notesVM;
     private readonly QuestionListViewModel _questionsVM;
     private readonly NoteDetailViewModel _noteDetailVM;
+    private readonly QuizViewModel _quizVM;
 
     public HierarchyCoordinator(
         SubjectListViewModel subjectsVM,
         TopicListViewModel topicsVM,
         NoteListViewModel notesVM,
         QuestionListViewModel questionsVM,
-        NoteDetailViewModel noteDetailVM)
+        NoteDetailViewModel noteDetailVM,
+        QuizViewModel quizVM)
     {
         _subjectsVM = subjectsVM;
         _topicsVM = topicsVM;
         _notesVM = notesVM;
         _questionsVM = questionsVM;
         _noteDetailVM = noteDetailVM;
+        _quizVM = quizVM;
 
     }
 
@@ -49,6 +53,8 @@ public class HierarchyCoordinator
         {
             _noteDetailVM.SetCurrentNote(null);
 
+            var selectedIds = new List<int>();
+
             if (selectedTopicVM != null)
             {
                 _noteDetailVM.SelectedTopicId = selectedTopicVM.Id;
@@ -59,6 +65,7 @@ public class HierarchyCoordinator
                 _noteDetailVM.SelectedTopicId = 0;
                 _notesVM.ClearNotes();
             }
+            await _quizVM.ValidateTopicsForQuizAsync(selectedIds);
         };
 
         // Note → Questions

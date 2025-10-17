@@ -44,6 +44,7 @@ public class MainViewModel : BaseViewModel
         get => _isAddingTopic;
         set => SetProperty(ref _isAddingTopic, value);
     }
+
     private bool _isQuizActive;
     public bool IsQuizActive
     {
@@ -51,6 +52,12 @@ public class MainViewModel : BaseViewModel
         set => SetProperty(ref _isQuizActive, value);
     }
 
+    private bool _hasEnoughQuestions;
+    public bool HasEnoughQuestions
+    {
+        get => _hasEnoughQuestions;
+        set => SetProperty(ref _hasEnoughQuestions, value);
+    }
 
     // Commands - inicializálás a konstruktorban
     public ICommand UnselectNoteCommand { get; }
@@ -109,9 +116,9 @@ public class MainViewModel : BaseViewModel
 
         StartQuizCommand = new RelayCommand(
             async _ => await StartQuizAsync(),
-            _ => TopicsVM.SelectedTopic != null && !IsQuizActive
+            _ => TopicsVM.SelectedTopic != null && !IsQuizActive && HasEnoughQuestions
         );
-        
+
         CloseQuizCommand = new RelayCommand(
             _ => IsQuizActive = false,
             _ => IsQuizActive
@@ -124,6 +131,7 @@ public class MainViewModel : BaseViewModel
 
         SetupEventSubscriptions();
     }
+
     private async Task StartQuizAsync()
     {
         try
@@ -173,6 +181,7 @@ public class MainViewModel : BaseViewModel
                 System.Windows.MessageBoxImage.Error);
         }
     }
+
     private void SetupEventSubscriptions()
     {
         // Save events
@@ -233,7 +242,7 @@ public class MainViewModel : BaseViewModel
             IsAddingTopic = false;
             IsAddingSubject = false;
         };
-        
+
         QuizVM.CloseRequested += () =>
         {
             IsQuizActive = false;
@@ -246,15 +255,60 @@ public class MainViewModel : BaseViewModel
                 IsQuizActive = false;
             }
         };
-        
-        TopicsVM.PropertyChanged += (s, e) =>
+
+        // Témakör kiválasztásakor ellenőrizzük a kérdések számát
+        TopicsVM.PropertyChanged += async (s, e) =>
         {
-            if (e.PropertyName == nameof(TopicsVM.SelectedTopic) && IsQuizActive)
+            if (e.PropertyName == nameof(TopicsVM.SelectedTopic))
             {
-                IsQuizActive = false;
+                if (TopicsVM.SelectedTopic != null)
+                {
+                    await ValidateQuestionCountAsync();
+                }
+                else
+                {
+                    HasEnoughQuestions = false;
+                }
+
+                if (IsQuizActive)
+                {
+                    IsQuizActive = false;
+                }
+
+                ((RelayCommand)StartQuizCommand).RaiseCanExecuteChanged();
             }
         };
 
+        // Kérdések generálása után frissítjük
+        QuestionsVM.PropertyChanged += async (s, e) =>
+        {
+            if (e.PropertyName == nameof(QuestionsVM.Questions) && TopicsVM.SelectedTopic != null)
+            {
+                await ValidateQuestionCountAsync();
+                ((RelayCommand)StartQuizCommand).RaiseCanExecuteChanged();
+            }
+        };
+    }
+
+    private async Task ValidateQuestionCountAsync()
+    {
+        if (TopicsVM?.SelectedTopic == null)
+        {
+            HasEnoughQuestions = false;
+            return;
+        }
+
+        try
+        {
+            var topicIds = new List<int> { TopicsVM.SelectedTopic.Id };
+            await QuizVM.ValidateTopicsForQuizAsync(topicIds);
+            HasEnoughQuestions = QuizVM.CanStartQuiz;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Hiba a kérdésszám ellenőrzésekor: {ex.Message}");
+            HasEnoughQuestions = false;
+        }
     }
 
     public async Task InitializeAsync()

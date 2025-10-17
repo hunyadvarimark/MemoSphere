@@ -44,5 +44,13 @@ namespace Core.Services
 
             return selectedQuestions;
         }
+        public async Task<int> GetQuestionCountForTopicsAsync(List<int> topicIds)
+        {
+            if (topicIds == null || !topicIds.Any())
+            {
+                return 0;
+            }
+            return await _unitOfWork.Questions.CountAsync(q => topicIds.Contains(q.TopicId));
+        }
     }
 }

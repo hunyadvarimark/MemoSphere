@@ -41,19 +41,19 @@ namespace MemoSphere.WPF
                     });
 
                     // Gemini Service
-                    //services.AddTransient<IQuestionGeneratorService, GeminiService>(provider =>
-                    //{
-                    //    var configuration = provider.GetRequiredService<IConfiguration>();
-                    //    var apiKey = configuration["GeminiApi:ApiKey"];
+                    services.AddTransient<IQuestionGeneratorService, GeminiService>(provider =>
+                    {
+                        var configuration = provider.GetRequiredService<IConfiguration>();
+                        var apiKey = configuration["GeminiApi:ApiKey"];
 
-                    //    if (string.IsNullOrEmpty(apiKey))
-                    //    {
-                    //        throw new InvalidOperationException("A Gemini API kulcs hiányzik a konfigurációból.");
-                    //    }
+                        if (string.IsNullOrEmpty(apiKey))
+                        {
+                            throw new InvalidOperationException("A Gemini API kulcs hiányzik a konfigurációból.");
+                        }
 
-                    //    return new GeminiService(apiKey);
-                    //});
-                    services.AddTransient<IQuestionGeneratorService, OllamaService>();
+                        return new GeminiService(apiKey);
+                    });
+                    //services.AddTransient<IQuestionGeneratorService, OllamaService>();
 
                     // Core Services
                     services.AddTransient<IUnitOfWork, UnitOfWork>();
@@ -89,8 +89,9 @@ namespace MemoSphere.WPF
                         var notesVM = provider.GetRequiredService<NoteListViewModel>();
                         var questionsVM = provider.GetRequiredService<QuestionListViewModel>();
                         var noteDetailVM = provider.GetRequiredService<NoteDetailViewModel>();
+                        var quizVM = provider.GetRequiredService<QuizViewModel>();
 
-                        return new HierarchyCoordinator(subjectsVM, topicsVM, notesVM, questionsVM, noteDetailVM);
+                        return new HierarchyCoordinator(subjectsVM, topicsVM, notesVM, questionsVM, noteDetailVM, quizVM);
                     });
 
                     services.AddSingleton<CrudOperationHandler>(provider =>

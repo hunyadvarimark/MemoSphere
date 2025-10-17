@@ -1,4 +1,5 @@
 ﻿using Core.Interfaces.Services;
+using Data.Services;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
@@ -11,8 +12,12 @@ namespace WPF.ViewModels.Quiz
     public class QuizViewModel : BaseViewModel
     {
         private readonly IQuizService _quizService;
+        private readonly IQuestionService _questionService;
         private readonly DispatcherTimer _timer;
         private readonly int _quizDurationInSeconds = 300;
+        private readonly int _requiredQuestionCount = 10;
+
+        private bool _canStartQuiz = false;
 
         private ObservableCollection<QuizItemViewModel> _quizItems = new ObservableCollection<QuizItemViewModel>();
         private int _currentQuestionIndex = 0;
@@ -26,6 +31,12 @@ namespace WPF.ViewModels.Quiz
         {
             get => _quizItems;
             set => SetProperty(ref _quizItems, value);
+        }
+
+        public bool CanStartQuiz
+        {
+            get => _canStartQuiz;
+            private set => SetProperty(ref _canStartQuiz, value);
         }
 
         public QuizItemViewModel CurrentItem =>
@@ -57,9 +68,17 @@ namespace WPF.ViewModels.Quiz
             ? $"Eredmény: {CorrectAnswers}/{TotalQuestions} ({(TotalQuestions > 0 ? CorrectAnswers * 100.0 / TotalQuestions : 0):F1}%)"
             : string.Empty;
 
+        private bool _isEvaluating;
+        public bool IsEvaluating
+        {
+            get => _isEvaluating;
+            private set => SetProperty(ref _isEvaluating, value);
+        }
+
         // --- Command-ok ---
         public AsyncCommand<List<int>> LoadQuizCommand { get; }
-        public ICommand SubmitAnswerCommand { get; }
+        public AsyncCommand<object> SubmitAnswerCommand { get; }
+
         public ICommand NavigateNextCommand { get; }
         public ICommand RestartQuizCommand { get; }
         public RelayCommand CloseQuizCommand { get; }
@@ -69,12 +88,14 @@ namespace WPF.ViewModels.Quiz
 
         // --- Konstruktor ---
 
-        public QuizViewModel(IQuizService quizService)
+        public QuizViewModel(IQuizService quizService, IQuestionService questionService)
         {
             _quizService = quizService ?? throw new ArgumentNullException(nameof(quizService));
+            _questionService = questionService ?? throw new ArgumentNullException(nameof(questionService));
+
 
             LoadQuizCommand = new AsyncCommand<List<int>>(LoadQuizAsync, CanLoadQuiz);
-            SubmitAnswerCommand = new RelayCommand(SubmitAnswer, CanSubmitAnswer);
+            SubmitAnswerCommand = new AsyncCommand<object>(SubmitAnswerAsync, CanSubmitAnswer);
             NavigateNextCommand = new RelayCommand(NavigateNext, CanNavigateNext);
             RestartQuizCommand = new RelayCommand(RestartQuiz, _ => IsQuizFinished);
             CloseQuizCommand = new RelayCommand(_ => CloseQuiz());
@@ -100,11 +121,11 @@ namespace WPF.ViewModels.Quiz
                 }
 
                 // Kérünk 10 kérdést a kiválasztott témakörökből
-                var questions = await _quizService.GetRandomQuestionsForQuizAsync(topicIds, 10);
+                var questions = await _quizService.GetRandomQuestionsForQuizAsync(topicIds, _requiredQuestionCount);
 
-                if (!questions.Any())
+                if (questions.Count < _requiredQuestionCount)
                 {
-                    MessageBox.Show("Nincs elérhető kérdés a kiválasztott témakörökből.");
+                    MessageBox.Show("Nincs elég elérhető kérdés a kiválasztott témakörökből.");
                     return;
                 }
 
@@ -136,26 +157,52 @@ namespace WPF.ViewModels.Quiz
             }
         }
 
-        private bool CanLoadQuiz(List<int> topicIds) => !IsQuizFinished;
+        private bool CanLoadQuiz(List<int> topicIds) => !IsQuizFinished && _canStartQuiz;
 
         private bool CanSubmitAnswer(object parameter) =>
             !IsQuizFinished &&
+            !IsEvaluating &&
             CurrentItem != null &&
             !IsCurrentQuestionAnswered &&
-            !string.IsNullOrWhiteSpace(CurrentItem.SelectedAnswerText);
+            (CurrentItem.IsShortAnswer
+                ? !string.IsNullOrWhiteSpace(CurrentItem.UserAnswerText)
+                : CurrentItem.SelectedAnswer != null);
 
         private bool CanNavigateNext(object parameter) =>
             !IsQuizFinished && IsCurrentQuestionAnswered;
 
-        private void SubmitAnswer(object parameter)
+        private async Task SubmitAnswerAsync(object parameter)
         {
             if (CurrentItem == null || IsQuizFinished) return;
 
+            if (CurrentItem.IsShortAnswer)
+            {
+                IsEvaluating = true;
+                try
+                {
+                    bool isCorrect = await _questionService.EvaluateUserShortAnswerAsync(
+                        CurrentItem.Question.Id,
+                        CurrentItem.UserAnswerText
+                    );
+
+                    CurrentItem.SetLLMEvaluationResult(isCorrect);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Hiba a válasz kiértékelése során: {ex.Message}");
+                    CurrentItem.SetLLMEvaluationResult(false);
+                }
+                finally
+                {
+                    IsEvaluating = false;
+                }
+            }
+
             CurrentItem.IsAnswerSubmitted = true;
             OnPropertyChanged(nameof(IsCurrentQuestionAnswered));
-
             RaiseCommandsCanExecuteChanged();
         }
+
 
         private void NavigateNext(object parameter)
         {
@@ -196,10 +243,10 @@ namespace WPF.ViewModels.Quiz
         // Segédmetódus a Commandok állapotának frissítéséhez
         private void RaiseCommandsCanExecuteChanged()
         {
-            ((RelayCommand)SubmitAnswerCommand).RaiseCanExecuteChanged();
+            SubmitAnswerCommand.RaiseCanExecuteChanged();
             ((RelayCommand)NavigateNextCommand).RaiseCanExecuteChanged();
             ((RelayCommand)RestartQuizCommand).RaiseCanExecuteChanged();
-            ((AsyncCommand<List<int>>)LoadQuizCommand).RaiseCanExecuteChanged();
+            LoadQuizCommand.RaiseCanExecuteChanged();
         }
 
         // --- Timer és Kiértékelés ---
@@ -249,10 +296,25 @@ namespace WPF.ViewModels.Quiz
 
             RaiseCommandsCanExecuteChanged();
         }
+
         private void CloseQuiz()
         {
             _timer.Stop();
             CloseRequested?.Invoke();
+        }
+
+        public async Task ValidateTopicsForQuizAsync(List<int> topicIds)
+        {
+            if (topicIds == null || !topicIds.Any())
+            {
+                CanStartQuiz = false;
+            }
+            else
+            {
+                var questionCount = await _quizService.GetQuestionCountForTopicsAsync(topicIds);
+                CanStartQuiz = questionCount >= _requiredQuestionCount;
+            }
+            LoadQuizCommand.RaiseCanExecuteChanged();
         }
     }
 }

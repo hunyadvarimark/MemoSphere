@@ -28,6 +28,7 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- TÁRGYAK -->
@@ -155,10 +156,51 @@
                     BorderThickness="0"
                     Cursor="Hand"/>
 
+            <!-- KVÍZ STÁTUSZ SZÖVEG -->
+            <TextBlock Grid.Row="6" 
+                       Margin="0,5,0,5"
+                       HorizontalAlignment="Center"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Text" Value=""/>
+                        <Setter Property="Foreground" Value="Gray"/>
+                        <Style.Triggers>
+                            <!-- Ha nincs kiválasztott témakör -->
+                            <DataTrigger Binding="{Binding TopicsVM.SelectedTopic}" Value="{x:Null}">
+                                <Setter Property="Text" Value="Válassz témakört"/>
+                            </DataTrigger>
+                            <!-- Ha van témakör, de nincs elég kérdés -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding TopicsVM.SelectedTopic, Converter={StaticResource BooleanToVisibilityConverter}}" Value="Visible"/>
+                                    <Condition Binding="{Binding HasEnoughQuestions}" Value="False"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Text" Value="⚠️ Legalább 10 kérdés szükséges"/>
+                                <Setter Property="Foreground" Value="Orange"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </MultiDataTrigger>
+                            <!-- Ha minden rendben -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding TopicsVM.SelectedTopic, Converter={StaticResource BooleanToVisibilityConverter}}" Value="Visible"/>
+                                    <Condition Binding="{Binding HasEnoughQuestions}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Text" Value="✓ Kvíz indítható"/>
+                                <Setter Property="Foreground" Value="Green"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+
             <!-- KVÍZ INDÍTÁSA GOMB -->
-            <Button Grid.Row="6" 
-                    Content="🎯 Kvíz Indítása" 
-                    Command="{Binding StartQuizCommand}" 
+            <Button Grid.Row="7"  
+                    Content="🎯 Kvíz Indítása"  
+                    Command="{Binding StartQuizCommand}"  
                     Padding="10,12"
                     Background="#FF5722"
                     Foreground="White"
@@ -168,9 +210,14 @@
                     Cursor="Hand">
                 <Button.Style>
                     <Style TargetType="Button">
+                        <Setter Property="ToolTip" Value="Válassz egy témakört legalább 10 kérdéssel"/>
                         <Style.Triggers>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Background" Value="LightGray"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="True">
+                                <Setter Property="ToolTip" Value="Kvíz indítása"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Background" Value="#E64A19"/>

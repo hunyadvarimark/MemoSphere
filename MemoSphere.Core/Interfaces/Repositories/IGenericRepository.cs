@@ -19,5 +19,6 @@ namespace Core.Interfaces.Repositories
         void Update(T entity);
         Task ReloadAsync(T entity);
         Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
+        Task<int> CountAsync(Expression<Func<T, bool>> predicate);
     }
 }

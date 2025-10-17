@@ -1,6 +1,7 @@
 ﻿using Core.Entities;
 using Core.Enums;
 using Core.Interfaces.Services;
+using Google.Cloud.AIPlatform.V1;
 
 namespace Data.Services
 {
@@ -8,6 +9,9 @@ namespace Data.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IQuestionGeneratorService _questionGeneratorService;
+        private readonly string _modelName = "gemini-2.5-flash";
+        //private readonly string _modelName = "gemma3:12b";
+
 
         public QuestionService(IUnitOfWork unitofWork, IQuestionGeneratorService questionGeneratorService)
         {
@@ -42,11 +46,11 @@ namespace Data.Services
 
             foreach (var chunk in chunks)
             {
-                //var qaPairs = await _questionGeneratorService.GenerateQuestionsAsync(chunk.Content, type, "gemini-2.5-flash");
+                var qaPairs = await _questionGeneratorService.GenerateQuestionsAsync(chunk.Content, type, _modelName);
 
-                var ollamaModelName = "gemma3:12b"; // VAGY a letöltött modell neve (pl. "mistral:latest")
-                var qaPairs = await _questionGeneratorService.GenerateQuestionsAsync(chunk.Content, type, ollamaModelName);
-                
+                //var ollamaModelName = "gemma3:12b"; // VAGY a letöltött modell neve (pl. "mistral:latest")
+                //var qaPairs = await _questionGeneratorService.GenerateQuestionsAsync(chunk.Content, type, ollamaModelName);
+
                 if (qaPairs == null || !qaPairs.Any())
                 {
                     Console.WriteLine("Az API nem generált kérdéseket.");
@@ -58,7 +62,7 @@ namespace Data.Services
                     List<string> wrongAnswers = new List<string>();
                     if (type == QuestionType.MultipleChoice)
                     {
-                        wrongAnswers = await _questionGeneratorService.GenerateWrongAnswersAsync(pair.Answer, chunk.Content, "gemini-2.5-flash");
+                        wrongAnswers = await _questionGeneratorService.GenerateWrongAnswersAsync(pair.Answer, chunk.Content, _modelName);
                         if (wrongAnswers == null || wrongAnswers.Count < 2)
                         {
                             Console.WriteLine("Nincs elég rossz válasz generálva, kihagyjuk ezt a kérdést.");
@@ -67,8 +71,6 @@ namespace Data.Services
                     }
                     else if (type == QuestionType.TrueFalse)
                     {
-                        // Ha Igaz/Hamis, hozzáadjuk a hiányzó, ellentétes opciót.
-                        // Feltételezzük, hogy a pair.Answer a helyes válasz ('IGAZ' vagy 'HAMIS')
                         if (pair.Answer.Equals("IGAZ", StringComparison.OrdinalIgnoreCase))
                         {
                             wrongAnswers.Add("HAMIS");
@@ -112,6 +114,42 @@ namespace Data.Services
             await _unitOfWork.SaveChangesAsync();
             return true;
         }
+        public async Task<bool> EvaluateUserShortAnswerAsync(int questionId, string userAnswer)
+        {
+            // 1. Kérdés lekérése
+            var question = await _unitOfWork.Questions.GetByIdAsync(questionId);
+            if (question == null)
+            {
+                throw new ArgumentException("A kérdés nem található.", nameof(questionId));
+            }
+
+            if (question.QuestionType != QuestionType.ShortAnswer)
+            {
+                throw new InvalidOperationException("Ez a metódus csak ShortAnswer típusú kérdésekhez használható.");
+            }
+
+            // 2. Helyes válasz és kontextus lekérése
+            var correctAnswer = question.Answers.FirstOrDefault(a => a.IsCorrect);
+            if (correctAnswer == null)
+            {
+                throw new InvalidOperationException("A kérdésnek nincs helyes válasza definiálva.");
+            }
+
+            // 3. Eredeti kontextus lekérése
+            var sourceNote = await _unitOfWork.Notes.GetByIdAsync(question.SourceNoteId ?? 0);
+            string context = sourceNote?.Content ?? string.Empty;
+
+            // 4. LLM kiértékelés
+            bool isCorrect = await _questionGeneratorService.EvaluateAnswerAsync(
+                question.Text,
+                userAnswer,
+                correctAnswer.SampleAnswer ?? correctAnswer.Text,
+                context,
+                _modelName
+            );
+
+            return isCorrect;
+        }
 
         public async Task<IEnumerable<Question>> GetQuestionsByTopicIdAsync(int topicId)
         {
@@ -130,5 +168,6 @@ namespace Data.Services
 
             return await _unitOfWork.Questions.GetFilteredAsync(filter: q => q.SourceNoteId == noteId);
         }
+
     }
 }
