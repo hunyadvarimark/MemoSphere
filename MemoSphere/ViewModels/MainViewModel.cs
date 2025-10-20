@@ -1,318 +1,560 @@
-﻿using Core.Interfaces.Services;
-using Core.Services;
+﻿using Core.Entities;
+using Core.Interfaces.Services;
+using Data.Services;
+using System.Collections.ObjectModel;
+using System.Windows;
 using System.Windows.Input;
 using WPF.Utilities;
-using WPF.ViewModels;
 using WPF.ViewModels.Notes;
 using WPF.ViewModels.Questions;
 using WPF.ViewModels.Quiz;
 using WPF.ViewModels.Subjects;
 using WPF.ViewModels.Topics;
-using WPF.Views;
 using WPF.Views.Quiz;
 
-public class MainViewModel : BaseViewModel
+namespace WPF.ViewModels
 {
-    private readonly HierarchyCoordinator _hierarchyCoordinator;
-    private readonly CrudOperationHandler _crudHandler;
-
-    public QuizViewModel QuizVM { get; }
-
-    // List ViewModels
-    public SubjectListViewModel SubjectsVM { get; }
-    public TopicListViewModel TopicsVM { get; }
-    public NoteListViewModel NotesVM { get; }
-    public QuestionListViewModel QuestionsVM { get; set; }
-
-    // Detail ViewModels
-    public NoteDetailViewModel AddNoteVM { get; }
-    public SubjectDetailViewModel SubjectDetailVM { get; }
-    public TopicDetailViewModel TopicDetailVM { get; }
-    public QuestionDetailViewModel QuestionDetailVM { get; }
-
-    // UI State
-    private bool _isAddingSubject;
-    public bool IsAddingSubject
+    public class MainViewModel : BaseViewModel
     {
-        get => _isAddingSubject;
-        set => SetProperty(ref _isAddingSubject, value);
-    }
+        private readonly HierarchyCoordinator _hierarchyCoordinator;
+        private readonly CrudOperationHandler _crudHandler;
+        private readonly INoteService _noteService;
+        private readonly IQuestionService _questionService;
+        private readonly IAuthService _authService;
 
-    private bool _isAddingTopic;
-    public bool IsAddingTopic
-    {
-        get => _isAddingTopic;
-        set => SetProperty(ref _isAddingTopic, value);
-    }
+        public QuizViewModel QuizVM { get; }
 
-    private bool _isQuizActive;
-    public bool IsQuizActive
-    {
-        get => _isQuizActive;
-        set => SetProperty(ref _isQuizActive, value);
-    }
+        // List ViewModels
+        public SubjectListViewModel SubjectsVM { get; }
+        public TopicListViewModel TopicsVM { get; }
+        public NoteListViewModel NotesVM { get; }
 
-    private bool _hasEnoughQuestions;
-    public bool HasEnoughQuestions
-    {
-        get => _hasEnoughQuestions;
-        set => SetProperty(ref _hasEnoughQuestions, value);
-    }
+        // Detail ViewModels
+        public SubjectDetailViewModel SubjectDetailVM { get; }
+        public TopicDetailViewModel TopicDetailVM { get; }
 
-    // Commands - inicializálás a konstruktorban
-    public ICommand UnselectNoteCommand { get; }
-    public RelayCommand AddSubjectCommand { get; }
-    public RelayCommand AddTopicCommand { get; }
-    public AsyncCommand<object> GenerateQuestionsCommand { get; }
-    public ICommand StartQuizCommand { get; }
-    public RelayCommand CloseQuizCommand { get; }
+        // TAB KEZELÉS
+        public ObservableCollection<NoteTabViewModel> OpenNotes { get; } = new();
 
-    public MainViewModel(
-    SubjectListViewModel subjectsVM,
-    TopicListViewModel topicsVM,
-    NoteListViewModel notesVM,
-    QuestionListViewModel questionsVM,
-    QuizViewModel quizVM,
-    SubjectDetailViewModel subjectDetailVM,
-    TopicDetailViewModel topicDetailVM,
-    NoteDetailViewModel noteDetailVM,
-    HierarchyCoordinator hierarchyCoordinator,
-    CrudOperationHandler crudHandler)
-    {
-        // ViewModels hozzárendelése
-        SubjectsVM = subjectsVM ?? throw new ArgumentNullException(nameof(subjectsVM));
-        TopicsVM = topicsVM ?? throw new ArgumentNullException(nameof(topicsVM));
-        NotesVM = notesVM ?? throw new ArgumentNullException(nameof(notesVM));
-        QuestionsVM = questionsVM ?? throw new ArgumentNullException(nameof(questionsVM));
-        QuizVM = quizVM ?? throw new ArgumentNullException(nameof(quizVM));
-
-        AddNoteVM = noteDetailVM ?? throw new ArgumentNullException(nameof(noteDetailVM));
-        SubjectDetailVM = subjectDetailVM ?? throw new ArgumentNullException(nameof(subjectDetailVM));
-        TopicDetailVM = topicDetailVM ?? throw new ArgumentNullException(nameof(topicDetailVM));
-
-        // Commands inicializálása
-        UnselectNoteCommand = new RelayCommand(_ => NotesVM.SelectedNote = null);
-
-        AddSubjectCommand = new RelayCommand(_ =>
+        private NoteTabViewModel _activeNote;
+        public NoteTabViewModel ActiveNote
         {
-            SubjectDetailVM.ResetState();
-            IsAddingSubject = true;
-        });
+            get => _activeNote;
+            set
+            {
+                if (_activeNote != null)
+                    _activeNote.IsActive = false;
 
-        AddTopicCommand = new RelayCommand(_ =>
+                if (SetProperty(ref _activeNote, value))
+                {
+                    if (_activeNote != null)
+                        _activeNote.IsActive = true;
+                }
+            }
+        }
+
+        private bool _isNoteListVisible;
+        public bool IsNoteListVisible
         {
-            TopicDetailVM.ResetState(SubjectsVM.SelectedSubject?.Id ?? 0);
-            IsAddingTopic = true;
-        }, _ => SubjectsVM.SelectedSubject != null);
-
-        GenerateQuestionsCommand = new AsyncCommand<object>(
-            async param =>
-            {
-                if (param is int noteId)
-                    await QuestionsVM.GenerateQuestionsForNoteAsync(noteId);
-            },
-            param => param is int id && id > 0
-        );
-
-        StartQuizCommand = new RelayCommand(
-            async _ => await StartQuizAsync(),
-            _ => TopicsVM.SelectedTopic != null && !IsQuizActive && HasEnoughQuestions
-        );
-
-        CloseQuizCommand = new RelayCommand(
-            _ => IsQuizActive = false,
-            _ => IsQuizActive
-        );
-
-        _hierarchyCoordinator = hierarchyCoordinator ?? throw new ArgumentNullException(nameof(hierarchyCoordinator));
-        _crudHandler = crudHandler ?? throw new ArgumentNullException(nameof(crudHandler));
-
-        _hierarchyCoordinator.Initialize();
-
-        SetupEventSubscriptions();
-    }
-
-    private async Task StartQuizAsync()
-    {
-        try
+            get => _isNoteListVisible;
+            set => SetProperty(ref _isNoteListVisible, value);
+        }
+        private string _currentUserEmail;
+        public string CurrentUserEmail
         {
-            if (TopicsVM?.SelectedTopic == null)
+            get => _currentUserEmail;
+            set => SetProperty(ref _currentUserEmail, value);
+        }
+        // UI State
+        private bool _isAddingSubject;
+        public bool IsAddingSubject
+        {
+            get => _isAddingSubject;
+            set => SetProperty(ref _isAddingSubject, value);
+        }
+
+        private bool _isAddingTopic;
+        public bool IsAddingTopic
+        {
+            get => _isAddingTopic;
+            set => SetProperty(ref _isAddingTopic, value);
+        }
+
+        private bool _isQuizActive;
+        public bool IsQuizActive
+        {
+            get => _isQuizActive;
+            set => SetProperty(ref _isQuizActive, value);
+        }
+
+        private bool _hasEnoughQuestions;
+        public bool HasEnoughQuestions
+        {
+            get => _hasEnoughQuestions;
+            set
             {
-                System.Windows.MessageBox.Show("Válassz egy témakört!", "Figyelmeztetés",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                return;
+                if (SetProperty(ref _hasEnoughQuestions, value))
+                {
+                    System.Diagnostics.Debug.WriteLine($"🔔 HasEnoughQuestions changed to: {value}");
+                    ((RelayCommand)StartQuizCommand).RaiseCanExecuteChanged();
+                }
             }
+        }
 
-            if (QuizVM == null)
+        // Commands
+        public ICommand UnselectNoteCommand { get; }
+        public RelayCommand AddSubjectCommand { get; }
+        public RelayCommand AddTopicCommand { get; }
+        public ICommand StartQuizCommand { get; }
+        public RelayCommand CloseQuizCommand { get; }
+        public RelayCommand AddNewNoteCommand { get; }
+        public RelayCommand ToggleNoteListCommand { get; }
+        public RelayCommand OpenNoteCommand { get; }
+        public ICommand LogoutCommand { get; }
+
+        public MainViewModel(
+            SubjectListViewModel subjectsVM,
+            TopicListViewModel topicsVM,
+            NoteListViewModel notesVM,
+            QuizViewModel quizVM,
+            SubjectDetailViewModel subjectDetailVM,
+            TopicDetailViewModel topicDetailVM,
+            HierarchyCoordinator hierarchyCoordinator,
+            CrudOperationHandler crudHandler,
+            INoteService noteService,
+            IQuestionService questionService,
+            IAuthService authService)
+        {
+            // ViewModels
+            SubjectsVM = subjectsVM ?? throw new ArgumentNullException(nameof(subjectsVM));
+            TopicsVM = topicsVM ?? throw new ArgumentNullException(nameof(topicsVM));
+            NotesVM = notesVM ?? throw new ArgumentNullException(nameof(notesVM));
+            QuizVM = quizVM ?? throw new ArgumentNullException(nameof(quizVM));
+
+            SubjectDetailVM = subjectDetailVM ?? throw new ArgumentNullException(nameof(subjectDetailVM));
+            TopicDetailVM = topicDetailVM ?? throw new ArgumentNullException(nameof(topicDetailVM));
+
+            _hierarchyCoordinator = hierarchyCoordinator ?? throw new ArgumentNullException(nameof(hierarchyCoordinator));
+            _crudHandler = crudHandler ?? throw new ArgumentNullException(nameof(crudHandler));
+            _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
+            _questionService = questionService ?? throw new ArgumentNullException(nameof(questionService));
+            _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+
+            _hasEnoughQuestions = false;
+
+            // Commands
+            UnselectNoteCommand = new RelayCommand(_ => NotesVM.SelectedNote = null);
+
+            AddSubjectCommand = new RelayCommand(_ =>
             {
-                System.Windows.MessageBox.Show("QuizVM nem inicializálódott!", "Hiba",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
-                return;
-            }
-
-            var topicIds = new List<int> { TopicsVM.SelectedTopic.Id };
-
-            // Kvíz betöltése
-            await QuizVM.LoadQuizCommand.ExecuteAsync(topicIds);
-
-            // Ellenőrizd hogy sikerült-e betölteni a kérdéseket
-            if (QuizVM.QuizItems == null || !QuizVM.QuizItems.Any())
-            {
-                System.Windows.MessageBox.Show("Nem sikerült betölteni a kvíz kérdéseket.", "Hiba",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
-                return;
-            }
-
-            // Kvíz ablak megnyitása a UI thread-en
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
-            {
-                var quizWindow = new QuizWindow(QuizVM);
-                quizWindow.ShowDialog();
+                SubjectDetailVM.ResetState();
+                IsAddingSubject = true;
             });
 
-            IsQuizActive = false;
-        }
-        catch (Exception ex)
-        {
-            System.Windows.MessageBox.Show(
-                $"Hiba a kvíz indításakor:\n\n{ex.Message}\n\nStackTrace:\n{ex.StackTrace}",
-                "Hiba",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Error);
-        }
-    }
-
-    private void SetupEventSubscriptions()
-    {
-        // Save events
-        SubjectDetailVM.SubjectSavedRequested += async subject =>
-        {
-            await _crudHandler.SaveSubjectAsync(subject);
-            IsAddingSubject = false;
-            SubjectDetailVM.ResetState();
-        };
-
-        TopicDetailVM.TopicSavedRequested += async topic =>
-        {
-            await _crudHandler.SaveTopicAsync(topic);
-            IsAddingTopic = false;
-            TopicDetailVM.ResetState(SubjectsVM.SelectedSubject?.Id ?? 0);
-        };
-
-        AddNoteVM.NoteSavedRequested += async note =>
-        {
-            await _crudHandler.SaveNoteAsync(note);
-            NotesVM.SelectedNote = null;
-        };
-
-        // Delete events
-        SubjectsVM.DeleteSubjectRequested += async id => await _crudHandler.DeleteSubjectAsync(id);
-        TopicsVM.DeleteTopicRequested += async id => await _crudHandler.DeleteTopicAsync(id);
-        NotesVM.DeleteNoteRequested += async id => await _crudHandler.DeleteNoteAsync(id);
-        AddNoteVM.NoteDeleteRequested += async id =>
-        {
-            await _crudHandler.DeleteNoteAsync(id);
-            AddNoteVM.ResetState();
-            if (TopicsVM.SelectedTopic != null)
+            AddTopicCommand = new RelayCommand(_ =>
             {
-                AddNoteVM.SelectedTopicId = TopicsVM.SelectedTopic.Id;
-            }
-        };
+                TopicDetailVM.ResetState(SubjectsVM.SelectedSubject?.Id ?? 0);
+                IsAddingTopic = true;
+            }, _ => SubjectsVM.SelectedSubject != null);
 
-        // Cancel events
-        SubjectDetailVM.CancelRequested += () => IsAddingSubject = false;
-        TopicDetailVM.CancelRequested += () => IsAddingTopic = false;
+            AddNewNoteCommand = new RelayCommand(_ => CreateNewNote(), _ => TopicsVM.SelectedTopic != null);
+            ToggleNoteListCommand = new RelayCommand(_ => IsNoteListVisible = !IsNoteListVisible);
 
-        // Edit events
-        SubjectsVM.EditSubjectRequested += subject =>
-        {
-            SubjectDetailVM.LoadSubject(subject);
-            IsAddingSubject = true;
-        };
+            StartQuizCommand = new RelayCommand(
+                async _ => await StartQuizAsync(),
+                _ => {
+                    var canExecute = TopicsVM.SelectedTopic != null && !IsQuizActive && HasEnoughQuestions;
+                    System.Diagnostics.Debug.WriteLine($"🎯 StartQuizCommand.CanExecute: {canExecute} (Topic: {TopicsVM.SelectedTopic != null}, QuizActive: {IsQuizActive}, EnoughQuestions: {HasEnoughQuestions})");
+                    return canExecute;
+                }
+            );
 
-        TopicsVM.EditTopicRequested += topic =>
-        {
-            TopicDetailVM.LoadTopic(topic);
-            IsAddingTopic = true;
-        };
+            CloseQuizCommand = new RelayCommand(
+                _ => IsQuizActive = false,
+                _ => IsQuizActive
+            );
 
-        // UI State synchronization
-        SubjectsVM.SubjectSelected += _ =>
-        {
-            IsAddingTopic = false;
-            IsAddingSubject = false;
-        };
-
-        QuizVM.CloseRequested += () =>
-        {
-            IsQuizActive = false;
-        };
-
-        QuizVM.PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(QuizVM.IsQuizFinished) && QuizVM.IsQuizFinished)
+            OpenNoteCommand = new RelayCommand(param =>
             {
-                IsQuizActive = false;
-            }
-        };
-
-        // Témakör kiválasztásakor ellenőrizzük a kérdések számát
-        TopicsVM.PropertyChanged += async (s, e) =>
-        {
-            if (e.PropertyName == nameof(TopicsVM.SelectedTopic))
-            {
-                if (TopicsVM.SelectedTopic != null)
+                if (param is Note note)
                 {
-                    await ValidateQuestionCountAsync();
+                    OpenNoteInTab(note);
+                    IsNoteListVisible = false;
+                }
+            });
+            LogoutCommand = new RelayCommand(async _ => await LogoutAsync());
+            CurrentUserEmail = _authService.GetCurrentUserEmail() ?? "Ismeretlen";
+
+            _hierarchyCoordinator.Initialize();
+            SetupEventSubscriptions();
+        }
+
+        private void CreateNewNote()
+        {
+            if (TopicsVM.SelectedTopic == null) return;
+
+            var newNote = new Note
+            {
+                TopicId = TopicsVM.SelectedTopic.Id,
+                Title = "Új jegyzet",
+                Content = ""
+            };
+
+            OpenNoteInTab(newNote);
+        }
+
+        private void OpenNoteInTab(Note note)
+        {
+            var existingTab = OpenNotes.FirstOrDefault(t => t.Note.Id == note.Id && note.Id > 0);
+            if (existingTab != null)
+            {
+                ActiveNote = existingTab;
+                return;
+            }
+
+            var questionListVM = new QuestionListViewModel(_questionService);
+            var noteTab = new NoteTabViewModel(note, _noteService, questionListVM);
+
+            noteTab.CloseRequested += OnNoteTabCloseRequested;
+            noteTab.NoteSaved += OnNoteTabSaved;
+            noteTab.ActivateRequested += tab => ActiveNote = tab;
+
+            OpenNotes.Add(noteTab);
+            ActiveNote = noteTab;
+
+            if (note.Id > 0)
+            {
+                _ = questionListVM.LoadQuestionsAsync(note.Id);
+            }
+        }
+
+        private void OnNoteTabCloseRequested(NoteTabViewModel tab)
+        {
+            OpenNotes.Remove(tab);
+
+            if (ActiveNote == tab)
+            {
+                ActiveNote = OpenNotes.LastOrDefault();
+            }
+        }
+
+        private async void OnNoteTabSaved(Note note)
+        {
+            try
+            {
+                Note savedNote;
+                if (note.Id == 0)
+                {
+                    savedNote = await _noteService.AddNoteAsync(note);
+
+                    var tab = OpenNotes.FirstOrDefault(t => t.Note == note);
+                    if (tab != null)
+                    {
+                        tab.Note = savedNote;
+                        tab.MarkAsSaved();
+                        await tab.RefreshQuestionsAsync();
+                    }
                 }
                 else
                 {
-                    HasEnoughQuestions = false;
+                    savedNote = await _noteService.UpdateNoteAsync(note);
+                    var tab = OpenNotes.FirstOrDefault(t => t.Note.Id == note.Id);
+                    tab?.MarkAsSaved();
                 }
 
-                if (IsQuizActive)
+                if (TopicsVM.SelectedTopic != null)
+                {
+                    await NotesVM.LoadNotesAsync(TopicsVM.SelectedTopic.Id);
+
+                    await ValidateQuestionCountAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Hiba a mentés során: {ex.Message}", "Hiba");
+            }
+        }
+
+        private async Task StartQuizAsync()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("🚀 StartQuizAsync called");
+
+                if (TopicsVM?.SelectedTopic == null)
+                {
+                    MessageBox.Show("Válassz egy témakört!", "Figyelmeztetés",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var topicIds = new List<int> { TopicsVM.SelectedTopic.Id };
+
+                System.Diagnostics.Debug.WriteLine($"📚 Loading quiz for topic: {TopicsVM.SelectedTopic.Title} (ID: {TopicsVM.SelectedTopic.Id})");
+
+                await QuizVM.LoadQuizCommand.ExecuteAsync(topicIds);
+
+                if (QuizVM.QuizItems == null || !QuizVM.QuizItems.Any())
+                {
+                    MessageBox.Show("Nem sikerült betölteni a kvíz kérdéseket.", "Hiba",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"✅ Quiz loaded with {QuizVM.QuizItems.Count} questions");
+
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    var quizWindow = new QuizWindow(QuizVM);
+                    quizWindow.ShowDialog();
+                });
+
+                IsQuizActive = false;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error in StartQuizAsync: {ex.Message}");
+                MessageBox.Show(
+                    $"Hiba a kvíz indításakor:\n\n{ex.Message}\n\nStackTrace:\n{ex.StackTrace}",
+                    "Hiba",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void SetupEventSubscriptions()
+        {
+            // Save events
+            SubjectDetailVM.SubjectSavedRequested += async subject =>
+            {
+                try
+                {
+                    await _crudHandler.SaveSubjectAsync(subject);
+                    IsAddingSubject = false;
+                    SubjectDetailVM.ResetState();
+                }
+                catch { }
+            };
+
+            TopicDetailVM.TopicSavedRequested += async topic =>
+            {
+                try
+                {
+                    await _crudHandler.SaveTopicAsync(topic);
+                    IsAddingTopic = false;
+                    TopicDetailVM.ResetState(SubjectsVM.SelectedSubject?.Id ?? 0);
+                }
+                catch { }
+            };
+
+            // Delete events
+            SubjectsVM.DeleteSubjectRequested += async id => await _crudHandler.DeleteSubjectAsync(id);
+
+            TopicsVM.DeleteTopicRequested += async id =>
+            {
+                try
+                {
+                    await _crudHandler.DeleteTopicAsync(id);
+
+                    var tabsToRemove = OpenNotes.Where(t => t.Note.TopicId == id).ToList();
+                    foreach (var tab in tabsToRemove)
+                    {
+                        OnNoteTabCloseRequested(tab);
+                    }
+                }
+                catch { }
+            };
+
+            NotesVM.DeleteNoteRequested += async id =>
+            {
+                await _crudHandler.DeleteNoteAsync(id);
+
+                var openTab = OpenNotes.FirstOrDefault(t => t.Note.Id == id);
+                if (openTab != null)
+                {
+                    OnNoteTabCloseRequested(openTab);
+                }
+
+                await ValidateQuestionCountAsync();
+            };
+
+            // Cancel events
+            SubjectDetailVM.CancelRequested += () => IsAddingSubject = false;
+            TopicDetailVM.CancelRequested += () => IsAddingTopic = false;
+
+            // Edit events
+            SubjectsVM.EditSubjectRequested += subject =>
+            {
+                SubjectDetailVM.LoadSubject(subject);
+                IsAddingSubject = true;
+            };
+
+            TopicsVM.EditTopicRequested += topic =>
+            {
+                TopicDetailVM.LoadTopic(topic);
+                IsAddingTopic = true;
+            };
+
+            // UI State synchronization
+            SubjectsVM.SubjectSelected += _ =>
+            {
+                IsAddingTopic = false;
+                IsAddingSubject = false;
+                OpenNotes.Clear();
+                ActiveNote = null;
+            };
+
+            TopicsVM.PropertyChanged += async (s, e) =>
+            {
+                if (e.PropertyName == nameof(TopicsVM.SelectedTopic))
+                {
+                    System.Diagnostics.Debug.WriteLine($"📖 Topic changed to: {TopicsVM.SelectedTopic?.Title}");
+
+                    if (TopicsVM.SelectedTopic != null)
+                    {
+                        await ValidateQuestionCountAsync();
+                    }
+                    else
+                    {
+                        HasEnoughQuestions = false;
+                    }
+
+                    if (IsQuizActive)
+                    {
+                        IsQuizActive = false;
+                    }
+                }
+            };
+
+            // Note lista note kiválasztás -> Tab megnyitása
+            NotesVM.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(NotesVM.SelectedNote) && NotesVM.SelectedNote != null)
+                {
+                    OpenNoteInTab(NotesVM.SelectedNote.Note);
+                    IsNoteListVisible = false;
+                }
+            };
+
+            QuizVM.CloseRequested += () =>
+            {
+                IsQuizActive = false;
+            };
+
+            QuizVM.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(QuizVM.IsQuizFinished) && QuizVM.IsQuizFinished)
                 {
                     IsQuizActive = false;
                 }
-
-                ((RelayCommand)StartQuizCommand).RaiseCanExecuteChanged();
-            }
-        };
-
-        // Kérdések generálása után frissítjük
-        QuestionsVM.PropertyChanged += async (s, e) =>
+            };
+        }
+        private async Task ValidateQuestionCountAsync()
         {
-            if (e.PropertyName == nameof(QuestionsVM.Questions) && TopicsVM.SelectedTopic != null)
+            System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
+            System.Diagnostics.Debug.WriteLine("🔍 ValidateQuestionCountAsync STARTED");
+
+            if (TopicsVM?.SelectedTopic == null)
             {
-                await ValidateQuestionCountAsync();
-                ((RelayCommand)StartQuizCommand).RaiseCanExecuteChanged();
+                System.Diagnostics.Debug.WriteLine("⚠️ No topic selected");
+                HasEnoughQuestions = false;
+                System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
+                return;
             }
-        };
-    }
 
-    private async Task ValidateQuestionCountAsync()
-    {
-        if (TopicsVM?.SelectedTopic == null)
-        {
-            HasEnoughQuestions = false;
-            return;
-        }
+            try
+            {
+                var topicIds = new List<int> { TopicsVM.SelectedTopic.Id };
 
-        try
-        {
-            var topicIds = new List<int> { TopicsVM.SelectedTopic.Id };
-            await QuizVM.ValidateTopicsForQuizAsync(topicIds);
-            HasEnoughQuestions = QuizVM.CanStartQuiz;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Hiba a kérdésszám ellenőrzésekor: {ex.Message}");
-            HasEnoughQuestions = false;
-        }
-    }
+                System.Diagnostics.Debug.WriteLine($"📚 Topic: {TopicsVM.SelectedTopic.Title} (ID: {TopicsVM.SelectedTopic.Id})");
+                System.Diagnostics.Debug.WriteLine($"🔍 Calling QuizVM.ValidateTopicsForQuizAsync...");
 
-    public async Task InitializeAsync()
-    {
-        await SubjectsVM.LoadSubjectsAsync();
+                await QuizVM.ValidateTopicsForQuizAsync(topicIds);
+
+                System.Diagnostics.Debug.WriteLine($"✅ ValidateTopicsForQuizAsync completed");
+                System.Diagnostics.Debug.WriteLine($"🎯 QuizVM.CanStartQuiz = {QuizVM.CanStartQuiz}");
+
+                var oldValue = HasEnoughQuestions;
+                HasEnoughQuestions = QuizVM.CanStartQuiz;
+
+                System.Diagnostics.Debug.WriteLine($"📊 HasEnoughQuestions: {oldValue} → {HasEnoughQuestions}");
+
+                // ✅ FORCE UI UPDATE
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    OnPropertyChanged(nameof(HasEnoughQuestions));
+                    ((RelayCommand)StartQuizCommand).RaiseCanExecuteChanged();
+                    System.Diagnostics.Debug.WriteLine("🔄 UI forced to update");
+                });
+
+                System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ ERROR: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"StackTrace: {ex.StackTrace}");
+                HasEnoughQuestions = false;
+                System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
+            }
+        }
+        public async Task InitializeAsync()
+        {
+            System.Diagnostics.Debug.WriteLine("🏁 InitializeAsync started");
+
+            CurrentUserEmail = _authService.GetCurrentUserEmail() ?? "Ismeretlen";
+            System.Diagnostics.Debug.WriteLine($"👤 Current user email: {CurrentUserEmail}");
+
+            await SubjectsVM.LoadSubjectsAsync();
+
+            if (SubjectsVM.Subjects.Any())
+            {
+                SubjectsVM.SelectedSubject = SubjectsVM.Subjects.First();
+
+                await Task.Delay(100);
+
+                if (TopicsVM.SelectedTopic != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"🔍 Initial validation for topic: {TopicsVM.SelectedTopic.Title}");
+                    await ValidateQuestionCountAsync();
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine("✅ InitializeAsync complete");
+        }
+        private async Task LogoutAsync()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("=== Logout kezdődik ===");
+
+                // Megerősítés
+                var result = MessageBox.Show(
+                    "Biztosan ki szeretnél jelentkezni?",
+                    "Kijelentkezés",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question
+                );
+
+                if (result != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                // Kijelentkezés
+                await _authService.SignOutAsync();
+                System.Diagnostics.Debug.WriteLine("Session törölve");
+
+                // Restart application
+                System.Diagnostics.Process.Start(
+                    System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
+                );
+                System.Windows.Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Logout hiba: {ex.Message}");
+                MessageBox.Show($"Hiba a kijelentkezés során: {ex.Message}", "Hiba");
+            }
+        }
     }
 }

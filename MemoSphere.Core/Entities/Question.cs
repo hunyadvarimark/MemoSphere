@@ -6,6 +6,7 @@ namespace Core.Entities
     public class Question
     {
         public  int Id { get; set; }
+        public Guid UserId { get; set; }
 
         [Required]
         public string Text { get; set; }

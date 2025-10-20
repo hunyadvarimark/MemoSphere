@@ -305,16 +305,46 @@ namespace WPF.ViewModels.Quiz
 
         public async Task ValidateTopicsForQuizAsync(List<int> topicIds)
         {
+            System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
+            System.Diagnostics.Debug.WriteLine("🔍 QuizVM.ValidateTopicsForQuizAsync STARTED");
+            System.Diagnostics.Debug.WriteLine($"📥 TopicIds: {string.Join(", ", topicIds ?? new List<int>())}");
+
             if (topicIds == null || !topicIds.Any())
             {
+                System.Diagnostics.Debug.WriteLine("⚠️ No topic IDs provided");
                 CanStartQuiz = false;
+                System.Diagnostics.Debug.WriteLine($"✅ CanStartQuiz set to: {CanStartQuiz}");
+                System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
             }
             else
             {
-                var questionCount = await _quizService.GetQuestionCountForTopicsAsync(topicIds);
-                CanStartQuiz = questionCount >= _requiredQuestionCount;
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("🔍 Calling _quizService.GetQuestionCountForTopicsAsync...");
+
+                    var questionCount = await _quizService.GetQuestionCountForTopicsAsync(topicIds);
+
+                    System.Diagnostics.Debug.WriteLine($"📊 Question count returned: {questionCount}");
+                    System.Diagnostics.Debug.WriteLine($"📊 Required count: {_requiredQuestionCount}");
+
+                    var oldValue = CanStartQuiz;
+                    CanStartQuiz = questionCount >= _requiredQuestionCount;
+
+                    System.Diagnostics.Debug.WriteLine($"✅ CanStartQuiz: {oldValue} → {CanStartQuiz}");
+                    System.Diagnostics.Debug.WriteLine($"🔔 Raising LoadQuizCommand.CanExecuteChanged");
+
+                    LoadQuizCommand.RaiseCanExecuteChanged();
+
+                    System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"❌ ERROR in ValidateTopicsForQuizAsync: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"StackTrace: {ex.StackTrace}");
+                    CanStartQuiz = false;
+                    System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
+                }
             }
-            LoadQuizCommand.RaiseCanExecuteChanged();
         }
     }
 }

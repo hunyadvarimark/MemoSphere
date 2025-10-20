@@ -41,4 +41,24 @@ namespace WPF.Utilities
             return (value is bool b && b) ? parameter?.ToString() : Binding.DoNothing;
         }
     }
+    public class BooleanToStringConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (parameter == null)
+                return value?.ToString() ?? "";
+
+            var parts = parameter.ToString().Split('|');
+            if (parts.Length != 2)
+                return value?.ToString() ?? "";
+
+            bool boolValue = value is bool b && b;
+            return boolValue ? parts[0] : parts[1];
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return Binding.DoNothing;
+        }
+    }
 }

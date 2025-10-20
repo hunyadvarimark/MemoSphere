@@ -1,5 +1,4 @@
-﻿
-using Core.Entities;
+﻿using Core.Entities;
 using Core.Interfaces.Services;
 using System.Windows;
 using WPF.Utilities;
@@ -12,11 +11,12 @@ namespace MemoSphere.WPF
         private readonly ISubjectService _subjectService;
         private readonly ITopicService _topicService;
         private readonly INoteService _noteService;
+        private readonly MainViewModel _viewModel;
 
         public MainWindow(
             MainViewModel viewModel,
             ISubjectService subjectService,
-            ITopicService topicService, 
+            ITopicService topicService,
             INoteService noteService)
         {
             InitializeComponent();
@@ -24,11 +24,18 @@ namespace MemoSphere.WPF
             _subjectService = subjectService;
             _topicService = topicService;
             _noteService = noteService;
+            _viewModel = viewModel;
 
-            DataContext = viewModel;
+            DataContext = _viewModel;
 
-            _ = InitializeDataAndRefreshAsync(viewModel);
+            // NE HÍVD MEG ITT A BETÖLTÉST! A konstruktor túl korán fut, amikor még nincs session.
         }
+
+        public async Task LoadDataAsync()
+        {
+            await InitializeDataAndRefreshAsync(_viewModel);
+        }
+
         private async Task InitializeDataAndRefreshAsync(MainViewModel mainViewModel)
         {
             try
@@ -37,14 +44,15 @@ namespace MemoSphere.WPF
 
                 await mainViewModel.InitializeAsync();
 
-                await Task.Delay(100);
+                // Távolítsuk el a manuális re-set-eket és delay-eket – hagyjuk az eseménykezelőkre (HierarchyCoordinator)
+                // Ha szükséges, várjunk a teljes inicializációra, de jobb async Task.WhenAll vagy similar használatával
+                // Itt nincs szükség további manuális load-ra, mert az InitializeAsync() után az első SelectedSubject triggereli a láncot
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Alkalmazás inicializálási hiba: {ex.Message}");
             }
         }
-
         private async Task EnsureTestDataExistsAsync()
         {
             try
@@ -100,7 +108,7 @@ namespace MemoSphere.WPF
                 await _topicService.AddTopicAsync(tempTopic);
 
                 var romeTopic = (await _topicService.GetTopicBySubjectIdAsync(historySubject.Id))
-                                                     .FirstOrDefault(t => t.Title == "Ancient Rome");
+                                                            .FirstOrDefault(t => t.Title == "Ancient Rome");
                 if (romeTopic == null) return;
 
                 // 2.2 JEGYZET LÉTREHOZÁSA az Ancient Rome-hoz

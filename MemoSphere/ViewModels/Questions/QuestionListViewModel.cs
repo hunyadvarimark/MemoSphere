@@ -1,6 +1,4 @@
-﻿// WPF.ViewModels.Questions/QuestionListViewModel.cs
-
-using Core.Entities;
+﻿using Core.Entities;
 using Core.Enums;
 using Core.Interfaces.Services;
 using System.Collections.ObjectModel;

@@ -25,9 +25,12 @@ namespace WPF.ViewModels.Topics
             get => _selectedTopic;
             set
             {
-                _selectedTopic = value;
-                OnPropertyChanged();
-                TopicSelected?.Invoke(value);
+                if (_selectedTopic != value)
+                {
+                    _selectedTopic = value;
+                    OnPropertyChanged(nameof(SelectedTopic));
+                    TopicSelected?.Invoke(value);
+                }
             }
         }
 

@@ -6,9 +6,9 @@ namespace WPF.Views
     /// <summary>
     /// Interaction logic for AddNoteView.xaml
     /// </summary>
-    public partial class NoteDetailView : UserControl
+    public partial class NoteEditorView : UserControl
     {
-        public NoteDetailView()
+        public NoteEditorView()
         {
             InitializeComponent();
             this.Loaded += (s, e) =>

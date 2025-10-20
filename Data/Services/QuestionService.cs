@@ -1,7 +1,8 @@
 ﻿using Core.Entities;
 using Core.Enums;
 using Core.Interfaces.Services;
-using Google.Cloud.AIPlatform.V1;
+using Microsoft.EntityFrameworkCore;
+using Data.Context;
 
 namespace Data.Services
 {
@@ -9,32 +10,44 @@ namespace Data.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IQuestionGeneratorService _questionGeneratorService;
+        private readonly IAuthService _authService;
+        private readonly IDbContextFactory<MemoSphereDbContext> _factory;
         private readonly string _modelName = "gemini-2.5-flash";
-        //private readonly string _modelName = "gemma3:12b";
 
-
-        public QuestionService(IUnitOfWork unitofWork, IQuestionGeneratorService questionGeneratorService)
+        public QuestionService(IUnitOfWork unitofWork, IQuestionGeneratorService questionGeneratorService, IAuthService authService, IDbContextFactory<MemoSphereDbContext> factory)
         {
             _unitOfWork = unitofWork;
             _questionGeneratorService = questionGeneratorService;
+            _authService = authService;
+            _factory = factory;
         }
 
         public async Task DeleteQuestionAsync(int id)
         {
-            var questionToDelete = await _unitOfWork.Questions.GetByIdAsync(id);
-            if (questionToDelete == null)
+            var userId = _authService.GetCurrentUserId();
+
+            var questions = await _unitOfWork.Questions.GetFilteredAsync(
+                filter: q => q.Id == id,
+                includeProperties: "Topic"
+            );
+            var questionToDelete = questions.FirstOrDefault();
+
+            if (questionToDelete == null || questionToDelete.Topic.UserId != userId)
             {
-                throw new ArgumentException("A kérdés nem található.", nameof(id));
+                throw new ArgumentException("A kérdés nem található vagy nincs jogosultság a törléséhez.", nameof(id));
             }
+
             _unitOfWork.Questions.Remove(questionToDelete);
-            await _unitOfWork.SaveChangesAsync();
         }
+
         public async Task<bool> GenerateAndSaveQuestionsAsync(int noteId, QuestionType type)
         {
+            var userId = _authService.GetCurrentUserId();
+
             var note = await _unitOfWork.Notes.GetByIdAsync(noteId);
-            if (note == null)
+            if (note == null || note.UserId != userId)
             {
-                throw new ArgumentException("A jegyzet nem található.", nameof(noteId));
+                throw new ArgumentException("A jegyzet nem található vagy nincs jogosultság.", nameof(noteId));
             }
 
             var chunks = await _unitOfWork.NoteChunks.GetFilteredAsync(filter: n => n.NoteId == noteId);
@@ -44,12 +57,11 @@ namespace Data.Services
                 return false;
             }
 
+            var questionsToAdd = new List<Question>();
+
             foreach (var chunk in chunks)
             {
                 var qaPairs = await _questionGeneratorService.GenerateQuestionsAsync(chunk.Content, type, _modelName);
-
-                //var ollamaModelName = "gemma3:12b"; // VAGY a letöltött modell neve (pl. "mistral:latest")
-                //var qaPairs = await _questionGeneratorService.GenerateQuestionsAsync(chunk.Content, type, ollamaModelName);
 
                 if (qaPairs == null || !qaPairs.Any())
                 {
@@ -87,18 +99,18 @@ namespace Data.Services
                         Text = pair.Question,
                         QuestionType = type,
                         SourceNoteId = noteId,
+                        UserId = userId,
+                        IsActive = true,
                         Answers = new List<Answer>()
                     };
 
-                    // Közös helyes válasz hozzáadása
                     var correctAnswer = new Answer { Text = pair.Answer, IsCorrect = true };
                     if (type == QuestionType.ShortAnswer)
                     {
-                        correctAnswer.SampleAnswer = pair.Answer;  // Csak ShortAnswer-nél töltsd ki
+                        correctAnswer.SampleAnswer = pair.Answer;
                     }
                     question.Answers.Add(correctAnswer);
 
-                    // Hibás válaszok hozzáadása (csak MultipleChoice)
                     if (type == QuestionType.MultipleChoice || type == QuestionType.TrueFalse)
                     {
                         foreach (var wrongAnswerText in wrongAnswers)
@@ -108,19 +120,47 @@ namespace Data.Services
                         }
                     }
 
-                    await _unitOfWork.Questions.AddAsync(question);
+                    questionsToAdd.Add(question);
                 }
             }
-            await _unitOfWork.SaveChangesAsync();
-            return true;
+
+            if (!questionsToAdd.Any())
+            {
+                return false;
+            }
+
+            using var context = _factory.CreateDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
+            {
+                context.Questions.AddRange(questionsToAdd);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                Console.WriteLine($"{questionsToAdd.Count} kérdés sikeresen elmentve (UserId: {userId})");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Hiba a kérdések mentésekor: {ex.Message}");
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
+
         public async Task<bool> EvaluateUserShortAnswerAsync(int questionId, string userAnswer)
         {
-            // 1. Kérdés lekérése
-            var question = await _unitOfWork.Questions.GetByIdAsync(questionId);
-            if (question == null)
+            var userId = _authService.GetCurrentUserId();
+
+            var questions = await _unitOfWork.Questions.GetFilteredAsync(
+                filter: q => q.Id == questionId,
+                includeProperties: "Topic,Answers"
+            );
+            var question = questions.FirstOrDefault();
+
+            if (question == null || question.Topic.UserId != userId)
             {
-                throw new ArgumentException("A kérdés nem található.", nameof(questionId));
+                throw new ArgumentException("A kérdés nem található vagy nincs jogosultság.", nameof(questionId));
             }
 
             if (question.QuestionType != QuestionType.ShortAnswer)
@@ -128,18 +168,15 @@ namespace Data.Services
                 throw new InvalidOperationException("Ez a metódus csak ShortAnswer típusú kérdésekhez használható.");
             }
 
-            // 2. Helyes válasz és kontextus lekérése
             var correctAnswer = question.Answers.FirstOrDefault(a => a.IsCorrect);
             if (correctAnswer == null)
             {
                 throw new InvalidOperationException("A kérdésnek nincs helyes válasza definiálva.");
             }
 
-            // 3. Eredeti kontextus lekérése
             var sourceNote = await _unitOfWork.Notes.GetByIdAsync(question.SourceNoteId ?? 0);
             string context = sourceNote?.Content ?? string.Empty;
 
-            // 4. LLM kiértékelés
             bool isCorrect = await _questionGeneratorService.EvaluateAnswerAsync(
                 question.Text,
                 userAnswer,
@@ -153,21 +190,31 @@ namespace Data.Services
 
         public async Task<IEnumerable<Question>> GetQuestionsByTopicIdAsync(int topicId)
         {
+            var userId = _authService.GetCurrentUserId();
+
             if (topicId <= 0)
             {
                 throw new ArgumentException("A téma azonosítója érvénytelen.", nameof(topicId));
             }
-            return await _unitOfWork.Questions.GetFilteredAsync(q => q.TopicId == topicId);
+            return await _unitOfWork.Questions.GetFilteredAsync(
+                filter: q => q.TopicId == topicId && q.Topic.UserId == userId,
+                includeProperties: "Topic"
+            );
         }
+
         public async Task<IEnumerable<Question>> GetQuestionsForNoteAsync(int noteId)
         {
+            var userId = _authService.GetCurrentUserId();
+
             if (noteId <= 0)
             {
                 throw new ArgumentException("A jegyzet azonosítója érvénytelen.", nameof(noteId));
             }
 
-            return await _unitOfWork.Questions.GetFilteredAsync(filter: q => q.SourceNoteId == noteId);
+            return await _unitOfWork.Questions.GetFilteredAsync(
+                filter: q => q.SourceNoteId == noteId && q.SourceNote.UserId == userId,
+                includeProperties: "SourceNote"
+            );
         }
-
     }
 }

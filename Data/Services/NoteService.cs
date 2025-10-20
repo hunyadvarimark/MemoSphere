@@ -1,20 +1,27 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
-
+using Microsoft.EntityFrameworkCore;
+using Data.Context;
 
 namespace Data.Services
 {
     public class NoteService : INoteService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IAuthService _authService;
+        private readonly IDbContextFactory<MemoSphereDbContext> _factory;
 
-        public NoteService(IUnitOfWork unitOfWork)
+        public NoteService(IUnitOfWork unitOfWork, IAuthService authService, IDbContextFactory<MemoSphereDbContext> factory)
         {
             _unitOfWork = unitOfWork;
+            _authService = authService;
+            _factory = factory;
         }
 
         public async Task<Note> AddNoteAsync(Note note)
         {
+            var userId = _authService.GetCurrentUserId();
+
             if (string.IsNullOrWhiteSpace(note.Content))
             {
                 throw new ArgumentException("A jegyzet tartalma nem lehet üres.", nameof(note.Content));
@@ -25,66 +32,85 @@ namespace Data.Services
                 throw new ArgumentException("A jegyzetnek érvényes témakörhöz kell tartoznia.", nameof(note.TopicId));
             }
 
-            await _unitOfWork.Notes.AddAsync(note);
-            await _unitOfWork.SaveChangesAsync();
+            note.UserId = userId;
 
-            // chunking the note content into smaller parts for better processing
-            var chunks = SplitIntoChunks(note.Content, chunkSize: 2000);
-
-            foreach (var chunkText in chunks)
+            using var context = _factory.CreateDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
             {
-                var noteChunk = new NoteChunk
-                {
-                    Content = chunkText,
-                    NoteId = note.Id
-                };
-                await _unitOfWork.NoteChunks.AddAsync(noteChunk);
-            }
+                context.Notes.Add(note);
+                await context.SaveChangesAsync();
 
-            await _unitOfWork.SaveChangesAsync();
-            return note;
+                var chunks = SplitIntoChunks(note.Content, chunkSize: 2000);
+
+                foreach (var chunkText in chunks)
+                {
+                    var noteChunk = new NoteChunk
+                    {
+                        Content = chunkText,
+                        NoteId = note.Id
+                    };
+                    context.NoteChunks.Add(noteChunk);
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return note;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<IEnumerable<Note>> GetNotesByTopicIdAsync(int topicId)
         {
+            var userId = _authService.GetCurrentUserId();
+
             if (topicId <= 0)
             {
                 throw new ArgumentException("A téma azonosítója érvénytelen.", nameof(topicId));
             }
 
-            return await _unitOfWork.Notes.GetFilteredAsync(filter: n => n.TopicId == topicId);
+            return await _unitOfWork.Notes.GetFilteredAsync(filter: n => n.TopicId == topicId && n.UserId == userId);
         }
 
         public async Task DeleteNoteAsync(int id)
         {
+            var userId = _authService.GetCurrentUserId();
+
             if (id <= 0)
             {
                 throw new ArgumentException("A jegyzet azonosítója érvénytelen.", nameof(id));
             }
 
             var noteToDelete = await _unitOfWork.Notes.GetByIdAsync(id);
-            if (noteToDelete == null)
+            if (noteToDelete == null || noteToDelete.UserId != userId)
             {
-                throw new ArgumentException("A jegyzet nem található.", nameof(id));
+                throw new ArgumentException("Jegyzet törlése hiba: A jegyzet nem található vagy nincs jogosultság a törléséhez.", nameof(id));
             }
 
             _unitOfWork.Notes.Remove(noteToDelete);
-            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task<Note> UpdateNoteAsync(Note note)
         {
+            var userId = _authService.GetCurrentUserId();
+
             if (string.IsNullOrWhiteSpace(note.Content))
             {
                 throw new ArgumentException("A jegyzet tartalma nem lehet üres.", nameof(note.Content));
             }
 
             var noteToUpdate = await _unitOfWork.Notes.GetByIdAsync(note.Id);
-            if (noteToUpdate == null)
+            if (noteToUpdate == null || noteToUpdate.UserId != userId)
             {
-                throw new ArgumentException("A jegyzet nem található.", nameof(note.Id));
+                throw new ArgumentException("Jegyzet frissítése hiba: A jegyzet nem található vagy nincs jogosultság a frissítéséhez.", nameof(note.Id));
             }
-                noteToUpdate.Content = note.Content;
+
+            noteToUpdate.Content = note.Content;
             if (!string.IsNullOrWhiteSpace(note.Title))
             {
                 noteToUpdate.Title = note.Title;
@@ -94,28 +120,39 @@ namespace Data.Services
                 noteToUpdate.TopicId = note.TopicId;
             }
 
-            // Remove existing chunks for this note
-            var existingChunks = (await _unitOfWork.NoteChunks.GetFilteredAsync(nc => nc.NoteId == note.Id))?.ToList();
-            if (existingChunks != null && existingChunks.Any())
+            using var context = _factory.CreateDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+            try
             {
-                _unitOfWork.NoteChunks.RemoveRange(existingChunks);
-            }
+                context.Notes.Update(noteToUpdate);
 
-            // Create new chunks from updated content
-            var chunks = SplitIntoChunks(note.Content, chunkSize: 2000);
-            foreach (var chunkText in chunks)
-            {
-                var noteChunk = new NoteChunk
+                var existingChunks = await context.NoteChunks.Where(nc => nc.NoteId == note.Id).ToListAsync();
+                if (existingChunks.Any())
                 {
-                    Content = chunkText,
-                    NoteId = noteToUpdate.Id
-                };
-                await _unitOfWork.NoteChunks.AddAsync(noteChunk);
+                    context.NoteChunks.RemoveRange(existingChunks);
+                }
+
+                var chunks = SplitIntoChunks(note.Content, chunkSize: 2000);
+                foreach (var chunkText in chunks)
+                {
+                    var noteChunk = new NoteChunk
+                    {
+                        Content = chunkText,
+                        NoteId = noteToUpdate.Id
+                    };
+                    context.NoteChunks.Add(noteChunk);
+                }
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return noteToUpdate;
             }
-
-            await _unitOfWork.SaveChangesAsync();
-
-            return noteToUpdate;
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         private IEnumerable<string> SplitIntoChunks(string text, int chunkSize)

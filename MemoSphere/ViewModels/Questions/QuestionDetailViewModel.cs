@@ -9,7 +9,7 @@ namespace WPF.ViewModels.Questions
 {
     public class QuestionDetailViewModel : BaseViewModel
     {
-        private readonly IQuestionService _questionService; // ✅ Tároljuk!
+        private readonly IQuestionService _questionService;
         private Question _currentQuestion;
         private string _questionText = string.Empty;
         private QuestionType _questionType;
@@ -74,16 +74,16 @@ namespace WPF.ViewModels.Questions
         }
 
         public AsyncCommand<object> SaveQuestionCommand { get; }
-        public AsyncCommand<QuestionType> GenerateQuestionsCommand { get; } // ✅ Ez lesz inicializálva
+        public AsyncCommand<QuestionType> GenerateQuestionsCommand { get; }
 
         public event Action<Question> QuestionSavedRequested;
 
         public QuestionDetailViewModel(IQuestionService questionService)
         {
-            _questionService = questionService; // ✅ Eltároljuk!
+            _questionService = questionService;
 
             SaveQuestionCommand = new AsyncCommand<object>(SaveQuestionRequestedAsync, CanSaveQuestion);
-            GenerateQuestionsCommand = new AsyncCommand<QuestionType>(GenerateQuestionsAsync, CanGenerateQuestions); // ✅ Inicializálás
+            GenerateQuestionsCommand = new AsyncCommand<QuestionType>(GenerateQuestionsAsync, CanGenerateQuestions);
         }
 
         public void ResetState(int topicId)

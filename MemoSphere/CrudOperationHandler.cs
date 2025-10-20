@@ -31,25 +31,50 @@ public class CrudOperationHandler
         _notesVM = notesVM;
     }
 
+    // ✅ EGYETLEN HELYEN KEZELJÜK A HIBÁKAT
     public async Task SaveSubjectAsync(Subject subject)
     {
         try
         {
             if (subject == null)
+                throw new ArgumentNullException(nameof(subject));
+
+            Subject savedSubject;
+
+            if (subject.Id > 0)
             {
-                MessageBox.Show("Hiba: mentésre jelölt tantárgy üres.");
-                return;
+                // Update
+                savedSubject = await _subjectService.UpdateSubjectAsync(subject);
+            }
+            else
+            {
+                // Add
+                savedSubject = await _subjectService.AddSubjectAsync(subject.Title);
             }
 
-            Subject savedSubject = subject.Id > 0
-                ? await _subjectService.UpdateSubjectAsync(subject)
-                : await _subjectService.AddSubjectAsync(subject.Title);
-
+            // UI frissítés
             await _subjectsVM.LoadSubjectsAsync();
+
+            // Sikeres mentés visszajelzés (opcionális)
+            // MessageBox.Show("Tantárgy sikeresen mentve!", "Siker", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Duplikáció
+            MessageBox.Show(ex.Message, "Figyelmeztetés", MessageBoxButton.OK, MessageBoxImage.Warning);
+            throw; // ✅ Továbbdobjuk, hogy a MainViewModel tudja, hogy sikertelen volt
+        }
+        catch (ArgumentException ex)
+        {
+            // Validáció
+            MessageBox.Show(ex.Message, "Érvénytelen adat", MessageBoxButton.OK, MessageBoxImage.Warning);
+            throw;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Hiba a tantárgy mentése során: {ex.Message}");
+            // Egyéb hiba
+            MessageBox.Show($"Hiba a mentés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            throw;
         }
     }
 
@@ -57,53 +82,45 @@ public class CrudOperationHandler
     {
         try
         {
-            Topic savedTopic = topic.Id > 0
-                ? await _topicService.UpdateTopicAsync(topic)
-                : await _topicService.AddTopicAsync(topic);
+            if (topic == null)
+                throw new ArgumentNullException(nameof(topic));
 
+            Topic savedTopic;
+
+            if (topic.Id > 0)
+            {
+                savedTopic = await _topicService.UpdateTopicAsync(topic);
+            }
+            else
+            {
+                savedTopic = await _topicService.AddTopicAsync(topic);
+            }
+
+            // UI frissítés
             if (_subjectsVM.SelectedSubject != null)
             {
                 await _topicsVM.LoadTopicsAsync(_subjectsVM.SelectedSubject.Id);
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            MessageBox.Show($"Hiba a témakör mentése során: {ex.Message}");
+            MessageBox.Show(ex.Message, "Figyelmeztetés", MessageBoxButton.OK, MessageBoxImage.Warning);
+            throw;
         }
-    }
-
-    public async Task SaveNoteAsync(Note note)
-    {
-        try
+        catch (ArgumentException ex)
         {
-            Note savedNote = note.Id > 0
-                ? await _noteService.UpdateNoteAsync(note)
-                : await _noteService.AddNoteAsync(note);
-
-            if (_topicsVM.SelectedTopic != null)
-            {
-                await _notesVM.LoadNotesAsync(_topicsVM.SelectedTopic.Id);
-            }
+            MessageBox.Show(ex.Message, "Érvénytelen adat", MessageBoxButton.OK, MessageBoxImage.Warning);
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            MessageBox.Show(ex.Message, "Hozzáférés megtagadva", MessageBoxButton.OK, MessageBoxImage.Error);
+            throw;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Hiba a jegyzet mentése során: {ex.Message}");
-        }
-    }
-
-    public async Task DeleteSubjectAsync(int subjectId)
-    {
-        try
-        {
-            await _subjectService.DeleteSubjectAsync(subjectId);
-            _subjectsVM.RemoveSubject(subjectId);
-
-            if (_subjectsVM.SelectedSubject?.Id == subjectId)
-                _subjectsVM.SelectedSubject = null;
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Hiba a tantárgy törlésekor: {ex.Message}");
+            MessageBox.Show($"Hiba a mentés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            throw;
         }
     }
 
@@ -111,13 +128,69 @@ public class CrudOperationHandler
     {
         try
         {
+            // Megerősítés
+            var result = MessageBox.Show(
+                "Biztosan törölni szeretnéd ezt a témakört?\n\nA hozzá tartozó Jegyzetek és Kérdések is törlődnek!",
+                "Törlés megerősítése",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
             await _topicService.DeleteTopicAsync(topicId);
+
+            // UI frissítés
             _topicsVM.RemoveTopic(topicId);
-            _topicsVM.SelectedTopic = null;
+
+            if (_topicsVM.SelectedTopic?.Id == topicId)
+            {
+                _topicsVM.SelectedTopic = null;
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            MessageBox.Show(ex.Message, "Hozzáférés megtagadva", MessageBoxButton.OK, MessageBoxImage.Error);
+            throw;
+        }
+        catch (ArgumentException ex)
+        {
+            MessageBox.Show(ex.Message, "Érvénytelen művelet", MessageBoxButton.OK, MessageBoxImage.Warning);
+            throw;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Hiba a témakör törlésekor: {ex.Message}");
+            MessageBox.Show($"Hiba a törlés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            throw;
+        }
+    }
+
+    public async Task DeleteSubjectAsync(int subjectId)
+    {
+        try
+        {
+            var result = MessageBox.Show(
+                "Biztosan törölni szeretnéd ezt a tantárgyat?\n\nA hozzá tartozó Témakörök is törlődnek!",
+                "Törlés megerősítése",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            await _subjectService.DeleteSubjectAsync(subjectId);
+
+            _subjectsVM.RemoveSubject(subjectId);
+
+            if (_subjectsVM.SelectedSubject?.Id == subjectId)
+            {
+                _subjectsVM.SelectedSubject = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Hiba a törlés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            throw;
         }
     }
 
@@ -126,6 +199,7 @@ public class CrudOperationHandler
         try
         {
             await _noteService.DeleteNoteAsync(noteId);
+
             _notesVM.RemoveNoteFromList(noteId);
 
             if (_notesVM.SelectedNote?.Note.Id == noteId)
@@ -135,7 +209,8 @@ public class CrudOperationHandler
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Hiba a jegyzet törlése során: {ex.Message}");
+            MessageBox.Show($"Hiba a jegyzet törlése során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            throw;
         }
     }
 }
