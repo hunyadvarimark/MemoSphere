@@ -13,6 +13,8 @@ namespace Data.Services
         private readonly IAuthService _authService;
         private readonly IDbContextFactory<MemoSphereDbContext> _factory;
         private readonly string _modelName = "gemini-2.5-flash";
+        private const int MaxChunkSizeForBatch = 3000; // karakterben
+        private const int MaxParallelTasks = 3;
 
         public QuestionService(IUnitOfWork unitofWork, IQuestionGeneratorService questionGeneratorService, IAuthService authService, IDbContextFactory<MemoSphereDbContext> factory)
         {
@@ -42,6 +44,13 @@ namespace Data.Services
 
         public async Task<bool> GenerateAndSaveQuestionsAsync(int noteId, QuestionType type)
         {
+            var executionId = Guid.NewGuid().ToString().Substring(0, 8);
+            Console.WriteLine($"╔═══════════════════════════════════════════════════════════");
+            Console.WriteLine($"║ FUTÁS KEZDETE - ID: {executionId}");
+            Console.WriteLine($"║ NoteId: {noteId}, Type: {type}");
+            Console.WriteLine($"║ Időpont: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
+            Console.WriteLine($"╚═══════════════════════════════════════════════════════════");
+
             var userId = _authService.GetCurrentUserId();
 
             var note = await _unitOfWork.Notes.GetByIdAsync(noteId);
@@ -50,82 +59,68 @@ namespace Data.Services
                 throw new ArgumentException("A jegyzet nem található vagy nincs jogosultság.", nameof(noteId));
             }
 
-            var chunks = await _unitOfWork.NoteChunks.GetFilteredAsync(filter: n => n.NoteId == noteId);
+            var chunks = (await _unitOfWork.NoteChunks.GetFilteredAsync(filter: n => n.NoteId == noteId)).ToList();
             if (!chunks.Any())
             {
                 Console.WriteLine($"Nincsenek 'chunks' a {noteId} azonosítójú jegyzethez.");
                 return false;
             }
 
-            var questionsToAdd = new List<Question>();
-
+            // DEBUG: Chunk információk kiírása
+            Console.WriteLine($"=== DEBUG INFO ===");
+            Console.WriteLine($"Jegyzet hossza: {note.Content?.Length ?? 0} karakter");
+            Console.WriteLine($"Chunk-ok száma: {chunks.Count}");
             foreach (var chunk in chunks)
             {
-                var qaPairs = await _questionGeneratorService.GenerateQuestionsAsync(chunk.Content, type, _modelName);
-
-                if (qaPairs == null || !qaPairs.Any())
-                {
-                    Console.WriteLine("Az API nem generált kérdéseket.");
-                    continue;
-                }
-
-                foreach (var pair in qaPairs)
-                {
-                    List<string> wrongAnswers = new List<string>();
-                    if (type == QuestionType.MultipleChoice)
-                    {
-                        wrongAnswers = await _questionGeneratorService.GenerateWrongAnswersAsync(pair.Answer, chunk.Content, _modelName);
-                        if (wrongAnswers == null || wrongAnswers.Count < 2)
-                        {
-                            Console.WriteLine("Nincs elég rossz válasz generálva, kihagyjuk ezt a kérdést.");
-                            continue;
-                        }
-                    }
-                    else if (type == QuestionType.TrueFalse)
-                    {
-                        if (pair.Answer.Equals("IGAZ", StringComparison.OrdinalIgnoreCase))
-                        {
-                            wrongAnswers.Add("HAMIS");
-                        }
-                        else if (pair.Answer.Equals("HAMIS", StringComparison.OrdinalIgnoreCase))
-                        {
-                            wrongAnswers.Add("IGAZ");
-                        }
-                    }
-
-                    var question = new Question
-                    {
-                        TopicId = note.TopicId,
-                        Text = pair.Question,
-                        QuestionType = type,
-                        SourceNoteId = noteId,
-                        UserId = userId,
-                        IsActive = true,
-                        Answers = new List<Answer>()
-                    };
-
-                    var correctAnswer = new Answer { Text = pair.Answer, IsCorrect = true };
-                    if (type == QuestionType.ShortAnswer)
-                    {
-                        correctAnswer.SampleAnswer = pair.Answer;
-                    }
-                    question.Answers.Add(correctAnswer);
-
-                    if (type == QuestionType.MultipleChoice || type == QuestionType.TrueFalse)
-                    {
-                        foreach (var wrongAnswerText in wrongAnswers)
-                        {
-                            var wrongAnswer = new Answer { Text = wrongAnswerText, IsCorrect = false };
-                            question.Answers.Add(wrongAnswer);
-                        }
-                    }
-
-                    questionsToAdd.Add(question);
-                }
+                Console.WriteLine($"  - Chunk {chunk.Id}: {chunk.Content?.Length ?? 0} karakter");
             }
+
+            var questionsToAdd = new List<Question>();
+
+            // Optimalizálás: kis chunk-okat egyesítjük, nagyokat párhuzamosan dolgozzuk fel
+            var chunksToProcess = OptimizeChunks(chunks);
+
+            Console.WriteLine($"Batch-ek száma az optimalizálás után: {chunksToProcess.Count}");
+            for (int i = 0; i < chunksToProcess.Count; i++)
+            {
+                var totalChars = chunksToProcess[i].Sum(c => c.Content?.Length ?? 0);
+                Console.WriteLine($"  - Batch {i + 1}: {chunksToProcess[i].Count} chunk, összesen {totalChars} karakter");
+            }
+
+            // Párhuzamos feldolgozás limittel
+            var semaphore = new SemaphoreSlim(MaxParallelTasks);
+            var tasks = chunksToProcess.Select(async chunkGroup =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    string combinedContent = string.Join("\n\n", chunkGroup.Select(c => c.Content));
+                    return await ProcessChunkAsync(combinedContent, note.TopicId, noteId, userId, type);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+
+            var results = await Task.WhenAll(tasks);
+
+            foreach (var questions in results)
+            {
+                Console.WriteLine($"Egy batch {questions.Count} kérdést generált");
+                questionsToAdd.AddRange(questions);
+            }
+
+            Console.WriteLine($"=== ÖSSZESEN: {questionsToAdd.Count} kérdés generálódott ===");
+            Console.WriteLine($"╔═══════════════════════════════════════════════════════════");
+            Console.WriteLine($"║ FUTÁS VÉGE - ID: {executionId}");
+            Console.WriteLine($"║ Generált kérdések: {questionsToAdd.Count}");
+            Console.WriteLine($"║ Időpont: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
+            Console.WriteLine($"╚═══════════════════════════════════════════════════════════");
 
             if (!questionsToAdd.Any())
             {
+                Console.WriteLine("Nem sikerült kérdéseket generálni.");
                 return false;
             }
 
@@ -146,6 +141,115 @@ namespace Data.Services
                 await transaction.RollbackAsync();
                 throw;
             }
+        }
+
+        private List<List<NoteChunk>> OptimizeChunks(List<NoteChunk> chunks)
+        {
+            var result = new List<List<NoteChunk>>();
+            var currentBatch = new List<NoteChunk>();
+            int currentBatchSize = 0;
+
+            foreach (var chunk in chunks)
+            {
+                int chunkSize = chunk.Content?.Length ?? 0;
+
+                // Ha a chunk önmagában túl nagy, külön dolgozzuk fel
+                if (chunkSize > MaxChunkSizeForBatch)
+                {
+                    if (currentBatch.Any())
+                    {
+                        result.Add(new List<NoteChunk>(currentBatch));
+                        currentBatch.Clear();
+                        currentBatchSize = 0;
+                    }
+                    result.Add(new List<NoteChunk> { chunk });
+                }
+                // Ha hozzáadva túllépné a limitet, új batch-et kezdünk
+                else if (currentBatchSize + chunkSize > MaxChunkSizeForBatch && currentBatch.Any())
+                {
+                    result.Add(new List<NoteChunk>(currentBatch));
+                    currentBatch.Clear();
+                    currentBatchSize = 0;
+                    currentBatch.Add(chunk);
+                    currentBatchSize += chunkSize;
+                }
+                // Egyébként hozzáadjuk a jelenlegi batch-hez
+                else
+                {
+                    currentBatch.Add(chunk);
+                    currentBatchSize += chunkSize;
+                }
+            }
+
+            if (currentBatch.Any())
+            {
+                result.Add(currentBatch);
+            }
+
+            return result;
+        }
+
+        private async Task<List<Question>> ProcessChunkAsync(string content, int topicId, int noteId, Guid userId, QuestionType type)
+        {
+            var questions = new List<Question>();
+
+            try
+            {
+                var qaPairs = await _questionGeneratorService.GenerateQuestionsAsync(content, type, _modelName);
+
+                if (qaPairs == null || !qaPairs.Any())
+                {
+                    Console.WriteLine("Az API nem generált kérdéseket ehhez a chunk-hoz.");
+                    return questions;
+                }
+
+                foreach (var pair in qaPairs)
+                {
+                    // Validáció
+                    if (type == QuestionType.MultipleChoice && (pair.WrongAnswers == null || pair.WrongAnswers.Count < 2))
+                    {
+                        Console.WriteLine("Nincs elég rossz válasz, kihagyjuk ezt a kérdést.");
+                        continue;
+                    }
+
+                    var question = new Question
+                    {
+                        TopicId = topicId,
+                        Text = pair.Question,
+                        QuestionType = type,
+                        SourceNoteId = noteId,
+                        UserId = userId,
+                        IsActive = true,
+                        Answers = new List<Answer>()
+                    };
+
+                    // Helyes válasz hozzáadása
+                    var correctAnswer = new Answer { Text = pair.Answer, IsCorrect = true };
+                    if (type == QuestionType.ShortAnswer)
+                    {
+                        correctAnswer.SampleAnswer = pair.Answer;
+                    }
+                    question.Answers.Add(correctAnswer);
+
+                    // Rossz válaszok hozzáadása (már a generálás során kaptuk)
+                    if (type == QuestionType.MultipleChoice || type == QuestionType.TrueFalse)
+                    {
+                        foreach (var wrongAnswerText in pair.WrongAnswers)
+                        {
+                            var wrongAnswer = new Answer { Text = wrongAnswerText, IsCorrect = false };
+                            question.Answers.Add(wrongAnswer);
+                        }
+                    }
+
+                    questions.Add(question);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Hiba a chunk feldolgozása során: {ex.Message}");
+            }
+
+            return questions;
         }
 
         public async Task<bool> EvaluateUserShortAnswerAsync(int questionId, string userAnswer)

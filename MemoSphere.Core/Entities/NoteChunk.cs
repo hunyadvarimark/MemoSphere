@@ -10,6 +10,5 @@ namespace Core.Entities
         public string Content { get; set; }
 
         public int NoteId { get; set; }
-        public Note Note { get; set; }
     }
 }

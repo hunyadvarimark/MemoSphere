@@ -41,7 +41,7 @@ public class GeminiService : IQuestionGeneratorService
                     temperature = 0.6,
                     topP = 0.8,
                     topK = 40,
-                    maxOutputTokens = 4000
+                    maxOutputTokens = 8000
                 }
             };
 
@@ -76,28 +76,28 @@ public class GeminiService : IQuestionGeneratorService
     }
 
     // =======================================================
-    // KÉRDÉS GENERÁLÁS
+    // KÉRDÉS GENERÁLÁS (MOSTANTÓL ROSSZ VÁLASZOKKAL EGYÜTT)
     // =======================================================
     public async Task<List<QuestionAnswerPair>> GenerateQuestionsAsync(string context, QuestionType type, string modelNameOverride = null)
     {
         string prompt;
-        (string questionRegex, string answerRegex) parsingRules;
+        Func<string, List<QuestionAnswerPair>> parser;
 
         switch (type)
         {
             case QuestionType.MultipleChoice:
                 prompt = GetMultipleChoicePrompt(context);
-                parsingRules = GetMultipleChoiceParsingRules();
+                parser = ParseMultipleChoiceResponse;
                 break;
 
             case QuestionType.TrueFalse:
                 prompt = GetTrueFalsePrompt(context);
-                parsingRules = GetTrueFalseParsingRules();
+                parser = ParseTrueFalseResponse;
                 break;
 
             case QuestionType.ShortAnswer:
                 prompt = GetShortAnswerPrompt(context);
-                parsingRules = GetShortAnswerParsingRules();
+                parser = ParseShortAnswerResponse;
                 break;
 
             default:
@@ -108,47 +108,17 @@ public class GeminiService : IQuestionGeneratorService
 
         if (!string.IsNullOrEmpty(generatedText))
         {
-            return ParseResponse(generatedText, parsingRules.questionRegex, parsingRules.answerRegex);
+            return parser(generatedText);
         }
         return new List<QuestionAnswerPair>();
     }
 
     // =======================================================
-    // HIBÁS VÁLASZOK GENERÁLÁSA
+    // HIBÁS VÁLASZOK GENERÁLÁSA (LEGACY - már nem használjuk)
     // =======================================================
     public async Task<List<string>> GenerateWrongAnswersAsync(string correctAnswer, string context, string modelNameOverride = null)
     {
-        string prompt = $@"A következő szövegkörnyezetből a helyes válasz: '{correctAnswer}'.
-Generálj **pontosan 3 (három) darab**, hihető, de hibás alternatívát a feleletválasztós kérdéshez.
-            
-**Fontos utasítások:**
-- A válaszok legyenek a szövegkörnyezetből származó tények, de ne a helyes válasz.
-- A válaszok legyenek hihetőek, ne nyilvánvalóan hibásak.
-- Ne adj hozzá semmilyen magyarázatot, kommentárt vagy bevezető szöveget.
-- Csak a sorszámozott listát add vissza!
-            
-Szövegkörnyezet:
-{context}
-            
-Hibás válaszok:
-";
-
-        string generatedText = await CallGeminiApiAsync(prompt, modelNameOverride);
-
-        if (!string.IsNullOrEmpty(generatedText))
-        {
-            var wrongAnswers = new List<string>();
-            string[] lines = generatedText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (string line in lines)
-            {
-                string cleanLine = Regex.Replace(line.Trim(), @"^\d+\.\s*", ""); // Sorszám eltávolítása
-                if (!string.IsNullOrWhiteSpace(cleanLine))
-                {
-                    wrongAnswers.Add(cleanLine);
-                }
-            }
-            return wrongAnswers;
-        }
+        // Ez a metódus már nem kerül hívásra, mert a kérdésgenerálás során egyből kérjük a rossz válaszokat
         return new List<string>();
     }
 
@@ -182,24 +152,131 @@ Válaszolj csak 'true' vagy 'false' értékkel, magyarázat nélkül.";
     }
 
     // =======================================================
-    // PARSING LOGIKA
+    // PARSING LOGIKA - FELELETVÁLASZTÓS
     // =======================================================
-    private List<QuestionAnswerPair> ParseResponse(string generatedText, string questionRegex, string answerRegex)
+    private List<QuestionAnswerPair> ParseMultipleChoiceResponse(string generatedText)
     {
         var qaPairs = new List<QuestionAnswerPair>();
         string[] lines = generatedText.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
-        QuestionAnswerPair currentPair = null;
 
-        Regex qRegex = new Regex(questionRegex, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        Regex aRegex = new Regex(answerRegex, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        Regex questionRegex = new Regex(@"^\s*(\d+)\.\s*(.+?\?)\s*$", RegexOptions.IgnoreCase);
+        Regex correctAnswerRegex = new Regex(@"^Helyes\s+válasz:\s*(.+)$", RegexOptions.IgnoreCase);
+        Regex wrongAnswerRegex = new Regex(@"^[A-D]\)\s*(.+)$", RegexOptions.IgnoreCase);
+
+        QuestionAnswerPair currentPair = null;
+        bool readingWrongAnswers = false;
 
         foreach (string line in lines)
         {
             string trimmedLine = line.Trim();
             if (string.IsNullOrWhiteSpace(trimmedLine)) continue;
 
-            Match questionMatch = qRegex.Match(trimmedLine);
-            Match answerMatch = aRegex.Match(trimmedLine);
+            Match questionMatch = questionRegex.Match(trimmedLine);
+            Match correctMatch = correctAnswerRegex.Match(trimmedLine);
+            Match wrongMatch = wrongAnswerRegex.Match(trimmedLine);
+
+            if (questionMatch.Success)
+            {
+                if (currentPair != null && !string.IsNullOrEmpty(currentPair.Question) && !string.IsNullOrEmpty(currentPair.Answer))
+                {
+                    qaPairs.Add(currentPair);
+                }
+
+                currentPair = new QuestionAnswerPair
+                {
+                    Question = questionMatch.Groups[2].Value.Trim(),
+                    WrongAnswers = new List<string>()
+                };
+                readingWrongAnswers = false;
+            }
+            else if (correctMatch.Success && currentPair != null)
+            {
+                currentPair.Answer = correctMatch.Groups[1].Value.Trim();
+                readingWrongAnswers = true;
+            }
+            else if (wrongMatch.Success && currentPair != null && readingWrongAnswers)
+            {
+                currentPair.WrongAnswers.Add(wrongMatch.Groups[1].Value.Trim());
+            }
+        }
+
+        if (currentPair != null && !string.IsNullOrEmpty(currentPair.Question) && !string.IsNullOrEmpty(currentPair.Answer))
+        {
+            qaPairs.Add(currentPair);
+        }
+
+        return qaPairs.Where(q => q.WrongAnswers != null && q.WrongAnswers.Count >= 2).Take(3).ToList();
+    }
+
+    // =======================================================
+    // PARSING LOGIKA - IGAZ/HAMIS
+    // =======================================================
+    private List<QuestionAnswerPair> ParseTrueFalseResponse(string generatedText)
+    {
+        var qaPairs = new List<QuestionAnswerPair>();
+        string[] lines = generatedText.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
+
+        Regex questionRegex = new Regex(@"^\s*(\d+)\.\s*(.+)\s*$", RegexOptions.IgnoreCase);
+        Regex answerRegex = new Regex(@"^Válasz:\s*(IGAZ|HAMIS)$", RegexOptions.IgnoreCase);
+
+        QuestionAnswerPair currentPair = null;
+
+        foreach (string line in lines)
+        {
+            string trimmedLine = line.Trim();
+            if (string.IsNullOrWhiteSpace(trimmedLine)) continue;
+
+            Match questionMatch = questionRegex.Match(trimmedLine);
+            Match answerMatch = answerRegex.Match(trimmedLine);
+
+            if (questionMatch.Success)
+            {
+                if (qaPairs.Count < 3)
+                {
+                    currentPair = new QuestionAnswerPair
+                    {
+                        Question = questionMatch.Groups[2].Value.Trim(),
+                        WrongAnswers = new List<string>()
+                    };
+                }
+                else
+                {
+                    currentPair = null;
+                }
+            }
+            else if (answerMatch.Success && currentPair != null)
+            {
+                string answer = answerMatch.Groups[1].Value.Trim().ToUpper();
+                currentPair.Answer = answer;
+                currentPair.WrongAnswers.Add(answer == "IGAZ" ? "HAMIS" : "IGAZ");
+                qaPairs.Add(currentPair);
+                currentPair = null;
+            }
+        }
+
+        return qaPairs;
+    }
+
+    // =======================================================
+    // PARSING LOGIKA - RÖVID VÁLASZ
+    // =======================================================
+    private List<QuestionAnswerPair> ParseShortAnswerResponse(string generatedText)
+    {
+        var qaPairs = new List<QuestionAnswerPair>();
+        string[] lines = generatedText.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
+
+        Regex questionRegex = new Regex(@"^\s*(\d+)\.\s*(.+?\?)\s*$", RegexOptions.IgnoreCase);
+        Regex answerRegex = new Regex(@"^Válasz:\s*(.+)$", RegexOptions.IgnoreCase);
+
+        QuestionAnswerPair currentPair = null;
+
+        foreach (string line in lines)
+        {
+            string trimmedLine = line.Trim();
+            if (string.IsNullOrWhiteSpace(trimmedLine)) continue;
+
+            Match questionMatch = questionRegex.Match(trimmedLine);
+            Match answerMatch = answerRegex.Match(trimmedLine);
 
             if (questionMatch.Success)
             {
@@ -212,16 +289,14 @@ Válaszolj csak 'true' vagy 'false' értékkel, magyarázat nélkül.";
                     currentPair = null;
                 }
             }
-            else if (answerMatch.Success)
+            else if (answerMatch.Success && currentPair != null && string.IsNullOrEmpty(currentPair.Answer))
             {
-                if (currentPair != null && string.IsNullOrEmpty(currentPair.Answer))
-                {
-                    currentPair.Answer = answerMatch.Groups[1].Value.Trim();
-                    qaPairs.Add(currentPair);
-                    currentPair = null;
-                }
+                currentPair.Answer = answerMatch.Groups[1].Value.Trim();
+                qaPairs.Add(currentPair);
+                currentPair = null;
             }
         }
+
         return qaPairs;
     }
 
@@ -230,15 +305,20 @@ Válaszolj csak 'true' vagy 'false' értékkel, magyarázat nélkül.";
     // =======================================================
     private string GetMultipleChoicePrompt(string context)
     {
-        return $@"A következő magyar nyelvű szöveg alapján generálj **pontosan 3 (három) darab**, számozott kérdés-válasz párt.
+        return $@"A következő magyar nyelvű szöveg alapján generálj **pontosan 3 (három) darab**, számozott feleletválasztós kérdés-válasz párt.
 
 **Minden egyes kérdés-válasz pár a következő formátumot kövesse, szigorúan ezen sorrendben:**
 [Kérdés sorszáma]. [A kérdés szövege]?
-Válasz: [A helyes válasz szövege]
+Helyes válasz: [A helyes válasz szövege]
+A) [Első rossz válasz]
+B) [Második rossz válasz]
+C) [Harmadik rossz válasz]
 
 **Fontos utasítások:**
 - A kérdések legyenek tényalapúak és informatívak.
-- A válaszok legyenek egyértelműek, tömörek és kizárólag a megadott szövegből származó információkat tartalmazzák, és feleletválasztós típushoz legyenek alkalmasak.
+- A helyes válasz legyen egyértelmű, tömör és kizárólag a megadott szövegből származó információt tartalmazzon.
+- A 3 rossz válasz legyen hihető, a szövegkörnyezetből származó, de helytelen információ.
+- A rossz válaszok ne legyenek nyilvánvalóan hibásak.
 - Ne adj hozzá semmilyen magyarázatot, kommentárt, bevezető vagy záró szöveget. Csak a 3 kérdés-válasz pár listáját add vissza!
 
 Szöveg:
@@ -287,23 +367,5 @@ Szöveg:
 
 Kérdések és Válaszok:
 ";
-    }
-
-    // =======================================================
-    // PARSING SZABÁLYOK
-    // =======================================================
-    private (string questionRegex, string answerRegex) GetMultipleChoiceParsingRules()
-    {
-        return (@"^\s*(\d+)\.\s*(.+?\?)\s*$", @"^Válasz:\s*(.+)$");
-    }
-
-    private (string questionRegex, string answerRegex) GetShortAnswerParsingRules()
-    {
-        return GetMultipleChoiceParsingRules();
-    }
-
-    private (string questionRegex, string answerRegex) GetTrueFalseParsingRules()
-    {
-        return (@"^\s*(\d+)\.\s*(.+)\s*$", @"^Válasz:\s*(IGAZ|HAMIS)$");
     }
 }

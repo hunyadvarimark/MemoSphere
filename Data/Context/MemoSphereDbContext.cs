@@ -19,7 +19,7 @@ namespace Data.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // ID Generálás (PostgreSQL-kompatibilis)
+
             modelBuilder.Entity<Subject>().Property(s => s.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<Topic>().Property(t => t.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<Note>().Property(n => n.Id).ValueGeneratedOnAdd();
@@ -27,17 +27,37 @@ namespace Data.Context
             modelBuilder.Entity<Answer>().Property(a => a.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<NoteChunk>().Property(nc => nc.Id).ValueGeneratedOnAdd();
 
-            // Eredeti relációk (marad)
             modelBuilder.Entity<Question>()
                 .HasMany(q => q.Answers)
                 .WithOne(a => a.Question)
-                .HasForeignKey(a => a.QuestionId);
+                .HasForeignKey(a => a.QuestionId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Question>()
                 .HasOne(q => q.SourceNote)
                 .WithMany()
                 .HasForeignKey(q => q.SourceNoteId)
-                .IsRequired(false);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<NoteChunk>()
+                .HasOne<Note>()
+                .WithMany()
+                .HasForeignKey(nc => nc.NoteId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Note>()
+                .HasOne(n => n.Topic)
+                .WithMany(t => t.Notes)
+                .HasForeignKey(n => n.TopicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            modelBuilder.Entity<Topic>()
+                .HasOne(t => t.Subject)
+                .WithMany(s => s.Topics)
+                .HasForeignKey(t => t.SubjectId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Answer>()
                 .Property(a => a.IsCorrect)

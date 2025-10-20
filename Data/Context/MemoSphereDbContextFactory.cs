@@ -13,12 +13,13 @@ namespace Data.Context
             IConfigurationRoot configuration = new ConfigurationBuilder()
                 .SetBasePath(basePath)
                 .AddJsonFile("appsettings.json", optional: true)
-                .AddUserSecrets("4aa70949-6fcd-46fa-8050-04c29ca3a14d")
-                .AddEnvironmentVariables()
+                // .AddUserSecrets("4aa70949-6fcd-46fa-8050-04c29ca3a14d") // ← ELTÁVOLÍTVA
+                .AddEnvironmentVariables() // Ez marad, environment variable-ekből olvassa
                 .Build();
 
             var connectionString =
-                configuration.GetConnectionString("SupabaseConnection") ??
+                Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING") ??
+                configuration.GetConnectionString("Supabase") ??
                 configuration["Supabase:ConnectionString"];
 
             Console.WriteLine("==== CONNECTION STRING DEBUG ====");
@@ -27,7 +28,7 @@ namespace Data.Context
             Console.WriteLine("=================================");
 
             if (string.IsNullOrEmpty(connectionString))
-                throw new InvalidOperationException("PostgreSQL kapcsolati string hiányzik a User Secrets-ből.");
+                throw new InvalidOperationException("PostgreSQL kapcsolati string hiányzik az environment variable-ekből vagy appsettings.json-ből.");
 
             var optionsBuilder = new DbContextOptionsBuilder<MemoSphereDbContext>();
             optionsBuilder.UseNpgsql(connectionString);

@@ -65,39 +65,42 @@ namespace WPF.ViewModels.Questions
             try
             {
                 var result = MessageBox.Show(
-                    "Milyen típusú kérdéseket generáljak?\n\n" +
-                    "YES = Feleletválasztós\n" +
-                    "NO = Igaz/Hamis\n" +
-                    "CANCEL = Rövid válasz",
-                    "Kérdéstípus kiválasztása",
-                    MessageBoxButton.YesNoCancel,
+                    "Generáljak kérdéseket minden típusból?\n\n" +
+                    "• Feleletválasztós\n" +
+                    "• Igaz/Hamis\n" +
+                    "• Rövid válasz\n\n" +
+                    "A kérdések száma a jegyzet tartalmától függ.",
+                    "Kérdésgenerálás",
+                    MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
 
-                QuestionType type;
-                switch (result)
-                {
-                    case MessageBoxResult.Yes: type = QuestionType.MultipleChoice; break;
-                    case MessageBoxResult.No: type = QuestionType.TrueFalse; break;
-                    case MessageBoxResult.Cancel: type = QuestionType.ShortAnswer; break;
-                    default: return;
-                }
+                if (result != MessageBoxResult.Yes) return;
 
-                bool success = await _questionService.GenerateAndSaveQuestionsAsync(_currentNoteId, type);
-
-                if (success)
+                IsGenerating = true;
+                var tasks = new[]
                 {
-                    MessageBox.Show($"{GetQuestionTypeDisplayName(type)} kérdések sikeresen generálva!", "Siker",
+            _questionService.GenerateAndSaveQuestionsAsync(_currentNoteId, QuestionType.MultipleChoice),
+            _questionService.GenerateAndSaveQuestionsAsync(_currentNoteId, QuestionType.TrueFalse),
+            _questionService.GenerateAndSaveQuestionsAsync(_currentNoteId, QuestionType.ShortAnswer)
+        };
+
+                var results = await Task.WhenAll(tasks);
+
+                if (results.All(r => r))
+                {
+                    MessageBox.Show("9 kérdés sikeresen generálva!", "Siker",
                         MessageBoxButton.OK, MessageBoxImage.Information);
                     await LoadQuestionsAsync(_currentNoteId);
                 }
                 else
                 {
-                    MessageBox.Show("Nem sikerült kérdéseket generálni...", "Hiba", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Nem minden kérdéstípus generálása sikerült.", "Figyelmeztetés",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Hiba a kérdésgenerálás során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Hiba: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
