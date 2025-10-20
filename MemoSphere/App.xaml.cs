@@ -29,18 +29,31 @@ namespace MemoSphere.WPF
             _host = Host.CreateDefaultBuilder()
                 .ConfigureAppConfiguration((context, builder) =>
                 {
-                    builder.AddUserSecrets<App>();
+                    // Környezeti változók hozzáadása (ez lesz a prioritás)
+                    builder.AddEnvironmentVariables();
+
+                    // User Secrets fallback-ként (opcionális, csak dev gépen)
+                    //builder.AddUserSecrets<App>(optional: true);
                 })
                 .ConfigureServices((context, services) =>
                 {
                     var configuration = context.Configuration;
 
                     // SUPABASE CLIENT INICIALIZÁLÁS
-                    var supabaseUrl = configuration["Supabase:Url"];
-                    var supabaseAnonKey = configuration["Supabase:AnonKey"];
+                    // Először környezeti változókból próbálja, ha nincs, akkor config-ból
+                    var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL")
+                                      ?? configuration["Supabase:Url"];
+                    var supabaseAnonKey = Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY")
+                                          ?? configuration["Supabase:AnonKey"];
+
                     if (string.IsNullOrEmpty(supabaseUrl) || string.IsNullOrEmpty(supabaseAnonKey))
                     {
-                        throw new InvalidOperationException("Supabase URL vagy Anon Key hiányzik a konfigurációból.");
+                        throw new InvalidOperationException(
+                            "Supabase URL vagy Anon Key hiányzik.\n" +
+                            "Állítsd be a következő környezeti változókat:\n" +
+                            "- SUPABASE_URL\n" +
+                            "- SUPABASE_ANON_KEY"
+                        );
                     }
 
                     var supabaseOptions = new Supabase.SupabaseOptions
@@ -62,11 +75,18 @@ namespace MemoSphere.WPF
                     });
 
                     // DbContext - PostgreSQL
-                    var connectionString = configuration.GetConnectionString("Supabase") ?? configuration["Supabase:ConnectionString"];
+                    var connectionString = Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING")
+                                          ?? configuration.GetConnectionString("Supabase")
+                                          ?? configuration["Supabase:ConnectionString"];
+
                     if (string.IsNullOrEmpty(connectionString))
                     {
-                        throw new InvalidOperationException("Supabase connection string hiányzik.");
+                        throw new InvalidOperationException(
+                            "Supabase connection string hiányzik.\n" +
+                            "Állítsd be a SUPABASE_CONNECTION_STRING környezeti változót."
+                        );
                     }
+
                     services.AddDbContextFactory<MemoSphereDbContext>(options =>
                     {
                         options.UseNpgsql(connectionString);
@@ -76,11 +96,15 @@ namespace MemoSphere.WPF
                     services.AddTransient<IQuestionGeneratorService, GeminiService>(provider =>
                     {
                         var config = provider.GetRequiredService<IConfiguration>();
-                        var apiKey = config["GeminiApi:ApiKey"];
+                        var apiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY")
+                                    ?? config["GeminiApi:ApiKey"];
 
                         if (string.IsNullOrEmpty(apiKey))
                         {
-                            throw new InvalidOperationException("A Gemini API kulcs hiányzik a konfigurációból.");
+                            throw new InvalidOperationException(
+                                "A Gemini API kulcs hiányzik.\n" +
+                                "Állítsd be a GEMINI_API_KEY környezeti változót."
+                            );
                         }
 
                         return new GeminiService(apiKey);
