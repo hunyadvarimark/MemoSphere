@@ -259,70 +259,12 @@ namespace MemoSphere.WPF.Views
             }
         }
 
-        private async void SignUpLink_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void SignUpLink_Click(object sender, MouseButtonEventArgs e)
         {
-            try
-            {
-                ShowLoading(true);
-                HideError();
-
-                var email = EmailTextBox.Text.Trim();
-                var password = PasswordBox.Password;
-
-                // Validáció
-                if (string.IsNullOrEmpty(email))
-                {
-                    ShowError("Kérlek add meg az email címed!");
-                    return;
-                }
-
-                if (string.IsNullOrEmpty(password))
-                {
-                    ShowError("Kérlek add meg a jelszavad!");
-                    return;
-                }
-
-                if (!IsValidEmail(email))
-                {
-                    ShowError("Érvénytelen email cím!");
-                    return;
-                }
-
-                if (password.Length < 6)
-                {
-                    ShowError("A jelszónak legalább 6 karakter hosszúnak kell lennie!");
-                    return;
-                }
-
-                // Regisztráció
-                var success = await _authService.SignUpAsync(email, password);
-
-                if (success)
-                {
-                    MessageBox.Show(
-                        "Sikeres regisztráció! Kérlek ellenőrizd az email fiókodat a megerősítő linkért.",
-                        "Regisztráció sikeres",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information
-                    );
-
-                    // Email és jelszó törlése
-                    EmailTextBox.Text = "";
-                    PasswordBox.Password = "";
-                }
-                else
-                {
-                    ShowError("Regisztráció sikertelen. Lehet, hogy ez az email már használatban van.");
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowError($"Hiba történt: {ex.Message}");
-            }
-            finally
-            {
-                ShowLoading(false);
-            }
+            // Megnyitjuk a regisztrációs ablakot
+            var registerWindow = new RegisterWindow(_authService);
+            registerWindow.Show();
+            this.Close();
         }
 
         private bool IsValidEmail(string email)
