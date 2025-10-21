@@ -151,14 +151,14 @@ Hibás válaszok:
     // =======================================================
     // RÖVID VÁLASZ KIÉRTÉKELÉSE
     // =======================================================
-    public async Task<bool> EvaluateAnswerAsync(string questionText, string userAnswer, string correctAnswer, string context, string modelName)
+    public async Task<bool> EvaluateAnswerAsync(string questionText, string userAnswer, string correctAnswer, string modelName)
     {
         if (string.IsNullOrEmpty(modelName))
         {
             throw new ArgumentException("Az Ollama számára meg kell adni a modell nevét.", nameof(modelName));
         }
 
-        string prompt = $@"Kontextus: {context}
+        string prompt = $@"
 
 Kérdés: {questionText}
 

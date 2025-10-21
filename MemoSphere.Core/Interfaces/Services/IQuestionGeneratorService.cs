@@ -7,7 +7,7 @@ namespace Core.Interfaces.Services
     {
         Task<List<QuestionAnswerPair>> GenerateQuestionsAsync(string context, QuestionType type, string modelNameOverride = null);
         Task<List<string>> GenerateWrongAnswersAsync(string correctAnswer, string context, string modelNameOverride = null);
-        Task<bool> EvaluateAnswerAsync(string questionText, string userAnswer, string correctAnswer, string context, string modelNameOverride = null);
+        Task<bool> EvaluateAnswerAsync(string questionText, string userAnswer, string correctAnswer, string modelNameOverride = null);
     }
 
 }

@@ -285,7 +285,6 @@ namespace Data.Services
                 question.Text,
                 userAnswer,
                 correctAnswer.SampleAnswer ?? correctAnswer.Text,
-                context,
                 _modelName
             );
 

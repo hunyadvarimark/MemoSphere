@@ -125,9 +125,9 @@ public class GeminiService : IQuestionGeneratorService
     // =======================================================
     // RÖVID VÁLASZ KIÉRTÉKELÉSE
     // =======================================================
-    public async Task<bool> EvaluateAnswerAsync(string questionText, string userAnswer, string correctAnswer, string context, string modelNameOverride = null)
+    public async Task<bool> EvaluateAnswerAsync(string questionText, string userAnswer, string correctAnswer, string modelNameOverride = null)
     {
-        string prompt = $@"Kontextus: {context} (ha használod, különben hagyd ki)
+        string prompt = $@"
 Kérdés: {questionText}
 Helyes példa válasz: {correctAnswer}
 Felhasználói válasz: {userAnswer}
