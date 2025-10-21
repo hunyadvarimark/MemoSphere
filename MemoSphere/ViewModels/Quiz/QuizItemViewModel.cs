@@ -87,5 +87,17 @@ namespace WPF.ViewModels.Quiz
             _evalResult = isCorrect;
             OnPropertyChanged(nameof(IsCorrect));
         }
+        public void Reset()
+        {
+            _selectedAnswer = null;
+            _isAnswerSubmitted = false;
+            _userAnswerText = string.Empty;
+            _evalResult = null;
+
+            OnPropertyChanged(nameof(SelectedAnswer));
+            OnPropertyChanged(nameof(IsAnswerSubmitted));
+            OnPropertyChanged(nameof(UserAnswerText));
+            OnPropertyChanged(nameof(IsCorrect));
+        }
     }
 }

@@ -88,7 +88,7 @@ namespace WPF.ViewModels.Questions
 
                 if (results.All(r => r))
                 {
-                    MessageBox.Show("9 kérdés sikeresen generálva!", "Siker",
+                    MessageBox.Show("Kérdések sikeresen generálva!", "Siker",
                         MessageBoxButton.OK, MessageBoxImage.Information);
                     await LoadQuestionsAsync(_currentNoteId);
                 }

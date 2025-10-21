@@ -224,11 +224,32 @@ namespace WPF.ViewModels.Quiz
         private void RestartQuiz(object parameter)
         {
             _timer.Stop();
-            QuizItems.Clear();
+
+            // Alaphelyzetbe állítjuk az összes kérdést
+            foreach (var item in QuizItems)
+            {
+                item.Reset();
+            }
+
+            // Újrakeverjük a válaszokat (opcionális)
+            foreach (var item in QuizItems)
+            {
+                var random = new Random();
+                var shuffled = item.Question.Answers.OrderBy(a => random.Next()).ToList();
+                item.AnswerOptions.Clear();
+                foreach (var answer in shuffled)
+                {
+                    item.AnswerOptions.Add(answer);
+                }
+            }
+
             _currentQuestionIndex = 0;
             _secondsRemaining = _quizDurationInSeconds;
             IsQuizFinished = false;
             CorrectAnswers = 0;
+
+            // Újraindítjuk a timert
+            _timer.Start();
 
             OnPropertyChanged(nameof(CurrentItem));
             OnPropertyChanged(nameof(StatusText));
@@ -346,5 +367,6 @@ namespace WPF.ViewModels.Quiz
                 }
             }
         }
+
     }
 }
