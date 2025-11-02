@@ -17,6 +17,7 @@ public class UnitOfWork : IUnitOfWork
         Questions = new GenericRepository<Question>(_factory);
         Answers = new GenericRepository<Answer>(_factory);
         NoteChunks = new GenericRepository<NoteChunk>(_factory);
+        QuestionStatistics = new GenericRepository<QuestionStatistic>(_factory);
     }
 
     public IGenericRepository<Subject> Subjects { get; private set; }
@@ -25,6 +26,7 @@ public class UnitOfWork : IUnitOfWork
     public IGenericRepository<Question> Questions { get; private set; }
     public IGenericRepository<Answer> Answers { get; private set; }
     public IGenericRepository<NoteChunk> NoteChunks { get; }
+    public IGenericRepository<QuestionStatistic> QuestionStatistics { get; private set; }
 
     public async Task<int> SaveChangesAsync()
     {

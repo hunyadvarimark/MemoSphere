@@ -303,4 +303,9 @@ Kérdések és Válaszok:
     {
         return (@"^\s*(\d+)\.\s*(.+)\s*$", @"^Válasz:\s*(IGAZ|HAMIS)$");
     }
+
+    public Task<string> CleanupAndFormatNoteAsync(string rawText, string modelNameOverride = null)
+    {
+        throw new NotImplementedException();
+    }
 }

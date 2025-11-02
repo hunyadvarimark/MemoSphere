@@ -175,12 +175,14 @@ namespace WPF.ViewModels.Quiz
         {
             if (CurrentItem == null || IsQuizFinished) return;
 
+            bool isCorrect = false;
+
             if (CurrentItem.IsShortAnswer)
             {
                 IsEvaluating = true;
                 try
                 {
-                    bool isCorrect = await _questionService.EvaluateUserShortAnswerAsync(
+                    isCorrect = await _questionService.EvaluateUserShortAnswerAsync(
                         CurrentItem.Question.Id,
                         CurrentItem.UserAnswerText
                     );
@@ -191,14 +193,32 @@ namespace WPF.ViewModels.Quiz
                 {
                     MessageBox.Show($"Hiba a válasz kiértékelése során: {ex.Message}");
                     CurrentItem.SetLLMEvaluationResult(false);
+                    isCorrect = false;
                 }
                 finally
                 {
                     IsEvaluating = false;
                 }
             }
+            else
+            {
+                isCorrect = CurrentItem.SelectedAnswer?.IsCorrect ?? false;
+            }
 
             CurrentItem.IsAnswerSubmitted = true;
+            try
+            {
+                await _questionService.RecordAnswerAsync(
+                    questionId: CurrentItem.Question.Id,
+                    isCorrect: isCorrect
+                );
+                Debug.WriteLine($"✅ Statisztika rögzítve: QuestionId={CurrentItem.Question.Id}, IsCorrect={isCorrect}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"⚠️ Hiba a statisztika rögzítésekor: {ex.Message}");
+            }
+
             OnPropertyChanged(nameof(IsCurrentQuestionAnswered));
             RaiseCommandsCanExecuteChanged();
         }
@@ -320,8 +340,44 @@ namespace WPF.ViewModels.Quiz
 
         private void CloseQuiz()
         {
-            _timer.Stop();
+            System.Diagnostics.Debug.WriteLine("🚪 CloseQuiz called");
+            ResetState();
+
             CloseRequested?.Invoke();
+        }
+        public void ResetState()
+        {
+            System.Diagnostics.Debug.WriteLine("🔄 QuizViewModel.ResetState() called");
+
+            // Timer leállítása
+            _timer?.Stop();
+
+            // Kérdések törlése
+            _quizItems.Clear();
+
+            // Állapot reset
+            _currentQuestionIndex = 0;
+            _secondsRemaining = _quizDurationInSeconds;
+            _isQuizFinished = false;
+            _correctAnswers = 0;
+            _isEvaluating = false;
+
+            // Értesítések minden property-ről
+            OnPropertyChanged(nameof(QuizItems));
+            OnPropertyChanged(nameof(CurrentItem));
+            OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(RemainingTimeText));
+            OnPropertyChanged(nameof(IsQuizFinished));
+            OnPropertyChanged(nameof(IsCurrentQuestionAnswered));
+            OnPropertyChanged(nameof(CorrectAnswers));
+            OnPropertyChanged(nameof(TotalQuestions));
+            OnPropertyChanged(nameof(ResultText));
+            OnPropertyChanged(nameof(IsEvaluating));
+
+            // Command-ok frissítése
+            RaiseCommandsCanExecuteChanged();
+
+            System.Diagnostics.Debug.WriteLine("✅ QuizViewModel state reset complete");
         }
 
         public async Task ValidateTopicsForQuizAsync(List<int> topicIds)

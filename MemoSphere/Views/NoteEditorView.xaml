@@ -154,30 +154,85 @@
 
             <!-- Action buttons -->
             <Border Grid.Row="2" 
-                    Background="#F8F9FA" 
-                    BorderBrush="#E0E0E0" 
-                    BorderThickness="0,1,0,0"
-                    Padding="20,15">
+        Background="#F8F9FA" 
+        BorderBrush="#E0E0E0" 
+        BorderThickness="0,1,0,0"
+        Padding="20,15">
                 <Grid>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Command="{Binding GenerateQuestionsCommand}"
-                            Height="40"
-                            Padding="20,0"
-                            Margin="0,0,10,0"
-                            Background="#9C27B0"
-                            Foreground="White"
-                            BorderThickness="0"
-                            Cursor="Hand">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <!-- ÚJ SOR a loading indicator-nak -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Gombok -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Command="{Binding ImportPdfCommand}"
+        Height="40"
+        Padding="20,0"
+        Margin="0,0,10,0"
+        Background="#FF6F00"
+        Foreground="White"
+        BorderThickness="0"
+        Cursor="Hand">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="Button">
                                                 <Border Background="{TemplateBinding Background}" 
-                                                   CornerRadius="6"
-                                                   Padding="{TemplateBinding Padding}">
+                               CornerRadius="6"
+                               Padding="{TemplateBinding Padding}">
                                                     <ContentPresenter HorizontalAlignment="Center" 
-                                                                VerticalAlignment="Center"/>
+                                            VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#F57C00"/>
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Background" Value="#BDBDBD"/>
+                                            <Setter Property="Cursor" Value="Arrow"/>
+                                        </Trigger>
+                                        <DataTrigger Binding="{Binding IsImporting}" Value="True">
+                                            <Setter Property="IsEnabled" Value="False"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="FilePdfBox" 
+                                Width="18" 
+                                Height="18" 
+                                VerticalAlignment="Center" 
+                                Margin="0,0,8,0"/>
+                                <TextBlock Text="📄 PDF Import" 
+                  VerticalAlignment="Center"
+                  FontSize="14"
+                  FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding GenerateQuestionsCommand}"
+                    Height="40"
+                    Padding="20,0"
+                    Margin="0,0,10,0"
+                    Background="#9C27B0"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" 
+                                           CornerRadius="6"
+                                           Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter HorizontalAlignment="Center" 
+                                                        VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
                                         </Setter.Value>
@@ -190,42 +245,46 @@
                                             <Setter Property="Background" Value="#BDBDBD"/>
                                             <Setter Property="Cursor" Value="Arrow"/>
                                         </Trigger>
+                                        <!-- ÚJ: Disable a gomb generálás közben -->
+                                        <DataTrigger Binding="{Binding IsGenerating}" Value="True">
+                                            <Setter Property="IsEnabled" Value="False"/>
+                                        </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Button.Style>
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="AutoFix" 
-                                                    Width="18" 
-                                                    Height="18" 
-                                                    VerticalAlignment="Center" 
-                                                    Margin="0,0,8,0"/>
+                                            Width="18" 
+                                            Height="18" 
+                                            VerticalAlignment="Center" 
+                                            Margin="0,0,8,0"/>
                                 <TextBlock Text="🤖 AI Kérdésgenerálás" 
-                                      VerticalAlignment="Center"
-                                      FontSize="14"
-                                      FontWeight="SemiBold"/>
+                              VerticalAlignment="Center"
+                              FontSize="14"
+                              FontWeight="SemiBold"/>
                             </StackPanel>
                         </Button>
 
                         <Button Command="{Binding SaveCommand}"
-                            Content="💾 Mentés"
-                            Height="40"
-                            Padding="25,0"
-                            Background="#2196F3"
-                            Foreground="White"
-                            FontSize="14"
-                            FontWeight="SemiBold"
-                            BorderThickness="0"
-                            Cursor="Hand">
+                    Content="💾 Mentés"
+                    Height="40"
+                    Padding="25,0"
+                    Background="#2196F3"
+                    Foreground="White"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    BorderThickness="0"
+                    Cursor="Hand">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="Button">
                                                 <Border Background="{TemplateBinding Background}" 
-                                                   CornerRadius="6"
-                                                   Padding="{TemplateBinding Padding}">
+                                           CornerRadius="6"
+                                           Padding="{TemplateBinding Padding}">
                                                     <ContentPresenter HorizontalAlignment="Center" 
-                                                                VerticalAlignment="Center"/>
+                                                        VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
                                         </Setter.Value>
@@ -238,6 +297,126 @@
                                 </Style>
                             </Button.Style>
                         </Button>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1">
+                        <!-- AI Kérdésgenerálás Loading Indicator -->
+                        <Border Background="#E8EAF6" 
+                    Padding="15" 
+                    CornerRadius="6"
+                    Margin="0,15,0,0"
+                    BorderBrush="#5C6BC0"
+                    BorderThickness="1">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsGenerating}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <materialDesign:PackIcon Grid.Column="0"
+                                            Kind="Cog" 
+                                            Width="24" 
+                                            Height="24" 
+                                            Foreground="#3F51B5"
+                                            VerticalAlignment="Center"
+                                            Margin="0,0,12,0">
+                                    <materialDesign:PackIcon.RenderTransform>
+                                        <RotateTransform CenterX="12" CenterY="12"/>
+                                    </materialDesign:PackIcon.RenderTransform>
+                                    <materialDesign:PackIcon.Style>
+                                        <Style TargetType="materialDesign:PackIcon">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsGenerating}" Value="True">
+                                                    <DataTrigger.EnterActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard RepeatBehavior="Forever">
+                                                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.Angle"
+                                                                   From="0"
+                                                                   To="360"
+                                                                   Duration="0:0:2"/>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </DataTrigger.EnterActions>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </materialDesign:PackIcon.Style>
+                                </materialDesign:PackIcon>
+
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding GenerationStatus}" 
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="#3F51B5"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,8"/>
+
+                                    <ProgressBar IsIndeterminate="True" 
+                                     Height="6" 
+                                     Foreground="#5C6BC0"
+                                     Background="#C5CAE9"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- PDF Import Loading Indicator -->
+                        <Border Background="#FFF3E0" 
+                    Padding="15" 
+                    CornerRadius="6"
+                    Margin="0,15,0,0"
+                    BorderBrush="#FF6F00"
+                    BorderThickness="1">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsImporting}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <materialDesign:PackIcon Grid.Column="0"
+                                            Kind="FilePdfBox" 
+                                            Width="24" 
+                                            Height="24" 
+                                            Foreground="#FF6F00"
+                                            VerticalAlignment="Center"
+                                            Margin="0,0,12,0"/>
+
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ImportStatus}" 
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="#E65100"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,8"/>
+
+                                    <ProgressBar IsIndeterminate="True" 
+                                     Height="6" 
+                                     Foreground="#FF6F00"
+                                     Background="#FFE0B2"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
                     </StackPanel>
                 </Grid>
             </Border>

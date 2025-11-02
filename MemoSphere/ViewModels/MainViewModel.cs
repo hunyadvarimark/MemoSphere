@@ -21,6 +21,7 @@ namespace WPF.ViewModels
         private readonly INoteService _noteService;
         private readonly IQuestionService _questionService;
         private readonly IAuthService _authService;
+        private readonly IDocumentImportService _documentImportService;
 
         public QuizViewModel QuizVM { get; }
 
@@ -123,7 +124,8 @@ namespace WPF.ViewModels
             CrudOperationHandler crudHandler,
             INoteService noteService,
             IQuestionService questionService,
-            IAuthService authService)
+            IAuthService authService, 
+            IDocumentImportService documentImportService)
         {
             // ViewModels
             SubjectsVM = subjectsVM ?? throw new ArgumentNullException(nameof(subjectsVM));
@@ -139,6 +141,7 @@ namespace WPF.ViewModels
             _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
             _questionService = questionService ?? throw new ArgumentNullException(nameof(questionService));
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+            _documentImportService = documentImportService ?? throw new ArgumentNullException(nameof(documentImportService));
 
             _hasEnoughQuestions = false;
 
@@ -213,7 +216,7 @@ namespace WPF.ViewModels
             }
 
             var questionListVM = new QuestionListViewModel(_questionService);
-            var noteTab = new NoteTabViewModel(note, _noteService, questionListVM);
+            var noteTab = new NoteTabViewModel(note, _noteService, questionListVM, _documentImportService);
 
             noteTab.CloseRequested += OnNoteTabCloseRequested;
             noteTab.NoteSaved += OnNoteTabSaved;
@@ -287,6 +290,8 @@ namespace WPF.ViewModels
                         MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
+                QuizVM.ResetState();
+                System.Diagnostics.Debug.WriteLine("🔄 QuizVM state reset before loading");
 
                 var topicIds = new List<int> { TopicsVM.SelectedTopic.Id };
 

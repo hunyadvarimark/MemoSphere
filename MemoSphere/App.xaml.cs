@@ -2,6 +2,7 @@
 using Core.Services;
 using Data.Context;
 using Data.Services;
+using MemoSphere.Data.Services;
 using MemoSphere.WPF.Views;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -119,6 +120,9 @@ namespace MemoSphere.WPF
                     services.AddTransient<ISubjectService, SubjectService>();
                     services.AddTransient<IQuizService, QuizService>();
                     services.AddTransient<IAuthService, AuthService>();
+                    services.AddTransient<IDocumentImportService>(sp =>
+                        new DocumentImportService(sp.GetRequiredService<IQuestionGeneratorService>())
+                    );
 
                     // ViewModels
                     services.AddSingleton<SubjectListViewModel>();

@@ -319,5 +319,160 @@ namespace Data.Services
                 includeProperties: "SourceNote"
             );
         }
+
+        // STATISZTIKA RÖGZÍTÉSE
+        public async Task RecordAnswerAsync(int questionId, bool isCorrect)
+        {
+            var userId = _authService.GetCurrentUserId();
+
+            using var context = _factory.CreateDbContext();
+
+            // Keresünk létező statisztikát
+            var statistic = await context.QuestionStatistics
+                .FirstOrDefaultAsync(qs => qs.UserId == userId && qs.QuestionId == questionId);
+
+            if (statistic == null)
+            {
+                // Ha még nincs, létrehozzuk
+                statistic = new QuestionStatistic
+                {
+                    UserId = userId,
+                    QuestionId = questionId,
+                    TimesAsked = 0,
+                    TimesCorrect = 0,
+                    TimesIncorrect = 0
+                };
+                context.QuestionStatistics.Add(statistic);
+            }
+
+            // Frissítjük a statisztikát
+            statistic.TimesAsked++;
+            if (isCorrect)
+            {
+                statistic.TimesCorrect++;
+            }
+            else
+            {
+                statistic.TimesIncorrect++;
+            }
+            statistic.LastAsked = DateTime.UtcNow;
+
+            await context.SaveChangesAsync();
+        }
+
+        // SÚLYOZOTT KÉRDÉSEK LEKÉRÉSE
+        public async Task<List<Question>> GetWeightedQuestionsAsync(int topicId, int count, QuestionType? type = null)
+        {
+            var userId = _authService.GetCurrentUserId();
+
+            using var context = _factory.CreateDbContext();
+
+            var questionsQuery = context.Questions
+                .Include(q => q.Answers)
+                .Include(q => q.Topic)
+                .Where(q => q.TopicId == topicId && q.Topic.UserId == userId && q.IsActive);
+
+            if (type.HasValue)
+            {
+                questionsQuery = questionsQuery.Where(q => q.QuestionType == type.Value);
+            }
+
+            var allQuestions = await questionsQuery.ToListAsync();
+
+            if (!allQuestions.Any())
+            {
+                return new List<Question>();
+            }
+
+            var questionIds = allQuestions.Select(q => q.Id).ToList();
+            var statistics = await context.QuestionStatistics
+                .Where(qs => qs.UserId == userId && questionIds.Contains(qs.QuestionId))
+                .ToDictionaryAsync(qs => qs.QuestionId);
+
+            // ✅ DEBUG LOG: Kérdések súlyai
+            Console.WriteLine($"╔═══════════════════════════════════════════════════════════");
+            Console.WriteLine($"║ WEIGHTED QUESTION SELECTION - TopicId: {topicId}");
+            Console.WriteLine($"║ Total questions: {allQuestions.Count}, Requested: {count}");
+            Console.WriteLine($"╚═══════════════════════════════════════════════════════════");
+
+            var weightedQuestions = allQuestions.Select(q =>
+            {
+                double weight = CalculateWeight(q.Id, statistics);
+
+                // ✅ DEBUG: Súly információ hozzáadása a kérdéshez
+                q.DebugWeight = weight;
+                q.DebugStatistic = statistics.ContainsKey(q.Id) ? statistics[q.Id] : null;
+
+                // ✅ DEBUG LOG
+                var stat = statistics.ContainsKey(q.Id) ? statistics[q.Id] : null;
+                Console.WriteLine($"  Q{q.Id}: Weight={weight:F2} | " +
+                    $"Asked={stat?.TimesAsked ?? 0} | " +
+                    $"Correct={stat?.TimesCorrect ?? 0} | " +
+                    $"Success={stat?.SuccessRate ?? 0:P0}");
+
+                return new { Question = q, Weight = weight };
+            }).ToList();
+
+            var selectedQuestions = new List<Question>();
+            var random = new Random();
+            int questionsToSelect = Math.Min(count, weightedQuestions.Count);
+
+            Console.WriteLine($"\n🎲 Selecting {questionsToSelect} questions:");
+
+            for (int i = 0; i < questionsToSelect; i++)
+            {
+                double totalWeight = weightedQuestions.Sum(wq => wq.Weight);
+                double randomValue = random.NextDouble() * totalWeight;
+
+                double cumulativeWeight = 0;
+                var selected = weightedQuestions.First(wq =>
+                {
+                    cumulativeWeight += wq.Weight;
+                    return randomValue <= cumulativeWeight;
+                });
+
+                Console.WriteLine($"  [{i + 1}] Q{selected.Question.Id} selected " +
+                    $"(Weight: {selected.Weight:F2}, Random: {randomValue:F2}/{totalWeight:F2})");
+
+                selectedQuestions.Add(selected.Question);
+                weightedQuestions.Remove(selected);
+            }
+
+            Console.WriteLine($"╚═══════════════════════════════════════════════════════════\n");
+
+            return selectedQuestions;
+        }
+
+        // SÚLY SZÁMÍTÁS
+        private double CalculateWeight(int questionId, Dictionary<int, QuestionStatistic> statistics)
+        {
+            if (!statistics.ContainsKey(questionId))
+            {
+                return 1.0; // Alap súly új kérdéseknek
+            }
+
+            var stat = statistics[questionId];
+
+            if (stat.TimesAsked == 0)
+            {
+                return 1.0;
+            }
+
+            double successRate = stat.SuccessRate;
+
+            double baseWeight = 1.0 / (successRate + 0.2);
+
+            double incorrectMultiplier = 1.0 + (stat.TimesIncorrect * 0.2);
+
+            double weight = baseWeight * incorrectMultiplier;
+
+            var daysSinceLastAsked = (DateTime.UtcNow - stat.LastAsked).TotalDays;
+            if (daysSinceLastAsked < 7 && successRate < 0.6)
+            {
+                weight *= 1.5;
+            }
+
+            return weight;
+        }
     }
 }

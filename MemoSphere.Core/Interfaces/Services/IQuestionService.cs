@@ -10,5 +10,7 @@ namespace Core.Interfaces.Services
         Task<bool> GenerateAndSaveQuestionsAsync(int noteId, QuestionType type);
         Task<IEnumerable<Question>> GetQuestionsForNoteAsync(int noteId);
         Task<bool> EvaluateUserShortAnswerAsync(int questionId, string userAnswer);
+        Task RecordAnswerAsync(int questionId, bool isCorrect);
+        Task<List<Question>> GetWeightedQuestionsAsync(int topicId, int count, QuestionType? type = null);
     }
 }

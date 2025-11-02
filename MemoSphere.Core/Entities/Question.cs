@@ -1,5 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
-using Core.Enums;
+﻿using Core.Enums;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Core.Entities
 {
@@ -20,7 +21,12 @@ namespace Core.Entities
 
         public ICollection<Answer> Answers { get; set; }
         public bool IsActive { get; set; } = true;
-        public int DifficultyLevel { get; set; } 
+
+        [NotMapped]
+        public double? DebugWeight { get; set; }
+
+        [NotMapped]
+        public QuestionStatistic DebugStatistic { get; set; }
 
     }
 }

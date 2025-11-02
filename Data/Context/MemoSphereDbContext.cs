@@ -11,6 +11,7 @@ namespace Data.Context
         public DbSet<Question> Questions { get; set; }
         public DbSet<Answer> Answers { get; set; }
         public DbSet<NoteChunk> NoteChunks { get; set; }
+        public DbSet<QuestionStatistic> QuestionStatistics { get; set; } // ÚJ SOR
 
         public MemoSphereDbContext(DbContextOptions<MemoSphereDbContext> options)
            : base(options)
@@ -19,13 +20,13 @@ namespace Data.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-
             modelBuilder.Entity<Subject>().Property(s => s.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<Topic>().Property(t => t.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<Note>().Property(n => n.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<Question>().Property(q => q.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<Answer>().Property(a => a.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<NoteChunk>().Property(nc => nc.Id).ValueGeneratedOnAdd();
+            modelBuilder.Entity<QuestionStatistic>().Property(qs => qs.Id).ValueGeneratedOnAdd(); // ÚJ SOR
 
             modelBuilder.Entity<Question>()
                 .HasMany(q => q.Answers)
@@ -52,7 +53,6 @@ namespace Data.Context
                 .HasForeignKey(n => n.TopicId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-
             modelBuilder.Entity<Topic>()
                 .HasOne(t => t.Subject)
                 .WithMany(s => s.Topics)
@@ -62,6 +62,19 @@ namespace Data.Context
             modelBuilder.Entity<Answer>()
                 .Property(a => a.IsCorrect)
                 .HasConversion<int>();
+
+            modelBuilder.Entity<QuestionStatistic>()
+                .HasOne(qs => qs.Question)
+                .WithMany()
+                .HasForeignKey(qs => qs.QuestionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<QuestionStatistic>()
+                .HasIndex(qs => new { qs.UserId, qs.QuestionId })
+                .IsUnique();
+
+            modelBuilder.Entity<QuestionStatistic>()
+                .Ignore(qs => qs.SuccessRate);
         }
     }
 }
