@@ -1,0 +1,124 @@
+﻿<UserControl x:Class="WPF.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:dashboardVM="clr-namespace:WPF.ViewModels.Dashboard"
+             xmlns:converters="clr-namespace:WPF.Utilities"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=dashboardVM:DashboardViewModel, IsDesignTimeCreatable=False}"
+             d:DesignHeight="300" d:DesignWidth="300">
+    <UserControl.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisConverter"/>
+        <converters:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisConverter" />
+        <Style x:Key="SlimProgressBar" TargetType="ProgressBar">
+            <Setter Property="Height" Value="6"/>
+            <Setter Property="Background" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="3">
+                            <Grid>
+                                <Border x:Name="PART_Track" CornerRadius="3"/>
+                                <Border x:Name="PART_Indicator"
+                                        CornerRadius="3"
+                                        Background="{TemplateBinding Foreground}"
+                                        HorizontalAlignment="Left"/>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <Border Background="#F8F9FA"
+            BorderBrush="#E0E0E0"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="16"
+            Margin="0,0,0,16">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <materialDesign:PackIcon Kind="Target"
+                                         Width="20" Height="20"
+                                         Foreground="#3F51B5"
+                                         VerticalAlignment="Center"/>
+                <TextBlock Text="NAPI CÉLOK"
+                           FontSize="12"
+                           FontWeight="Bold"
+                           Foreground="#7E8BA3"
+                           VerticalAlignment="Center"
+                           Margin="8,0,0,0"/>
+            </StackPanel>
+            <StackPanel Margin="0,0,0,16">
+                <Grid>
+                    <TextBlock Text="Összesített haladás"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="#2C3E50"/>
+                    <TextBlock Text="{Binding TotalProgressText, Mode=OneWay}"
+                               FontSize="14"
+                               FontWeight="Bold"
+                               Foreground="#3F51B5"
+                               HorizontalAlignment="Right"/>
+                </Grid>
+                <ProgressBar Value="{Binding TotalProgressPercentage, Mode=OneWay}"
+                             Style="{StaticResource SlimProgressBar}"
+                             Foreground="#3F51B5"
+                             Margin="0,8,0,0"/>
+            </StackPanel>
+            <TextBlock Text="Nincs aktív témaköröd. Aktiválj egyet a listából (⭐) a kezdéshez!"
+                       TextWrapping="Wrap"
+                       Foreground="#7E8BA3"
+                       FontSize="13"
+                       Visibility="{Binding ActiveTopics.Count, Converter={StaticResource InvertedBoolToVisConverter}, Mode=OneWay}"/>
+            <ItemsControl ItemsSource="{Binding ActiveTopics}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="0,0,0,12">
+                            <Grid>
+                                <TextBlock Text="{Binding TopicName}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="#2C3E50"/>
+                                <TextBlock HorizontalAlignment="Right"
+                                           VerticalAlignment="Center">
+                                    <Run Text="🔥" FontSize="14"/>
+                                    <Run Text="{Binding CurrentStreak}" FontSize="14" FontWeight="Bold"/>
+                                </TextBlock>
+                            </Grid>
+                            <Grid Margin="0,4,0,0">
+                                <TextBlock Text="{Binding DailyProgressText, Mode=OneWay}"
+                                           FontSize="12"
+                                           Foreground="#546E7A"/>
+                                <TextBlock Text="{Binding DailyProgressPercentage, StringFormat={}{0:0}%, Mode=OneWay}"
+                                           FontSize="12"
+                                           Foreground="#546E7A"
+                                           HorizontalAlignment="Right"/>
+                            </Grid>
+                            <ProgressBar Value="{Binding DailyProgressPercentage, Mode=OneWay}"
+                                         Style="{StaticResource SlimProgressBar}"
+                                         Foreground="#4CAF50"
+                                         Margin="0,6,0,0"/>
+                            <Grid Margin="0,8,0,0">
+                                <TextBlock Text="Elsajátítás"
+                                           FontSize="12"
+                                           Foreground="#546E7A"/>
+                                <TextBlock Text="{Binding MasteryPercentage, StringFormat={}{0:0}%, Mode=OneWay}"
+                                           FontSize="12"
+                                           Foreground="#546E7A"
+                                           HorizontalAlignment="Right"/>
+                            </Grid>
+                            <ProgressBar Value="{Binding MasteryPercentage, Mode=OneWay}"
+                                         Style="{StaticResource SlimProgressBar}"
+                                         Foreground="#FFC107"
+                                         Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Border>
+</UserControl>

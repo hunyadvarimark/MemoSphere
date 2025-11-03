@@ -1,8 +1,9 @@
 ﻿using Core.Entities;
 using Core.Enums;
 using Core.Interfaces.Services;
-using Microsoft.EntityFrameworkCore;
 using Data.Context;
+using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 namespace Data.Services
 {
@@ -12,16 +13,23 @@ namespace Data.Services
         private readonly IQuestionGeneratorService _questionGeneratorService;
         private readonly IAuthService _authService;
         private readonly IDbContextFactory<MemoSphereDbContext> _factory;
+        private readonly IActiveLearningService _activeLearningService;
         private readonly string _modelName = "gemini-2.5-flash";
         private const int MaxChunkSizeForBatch = 3000; // karakterben
         private const int MaxParallelTasks = 3;
 
-        public QuestionService(IUnitOfWork unitofWork, IQuestionGeneratorService questionGeneratorService, IAuthService authService, IDbContextFactory<MemoSphereDbContext> factory)
+        public QuestionService(IUnitOfWork unitofWork,
+            IQuestionGeneratorService questionGeneratorService,
+            IAuthService authService,
+            IDbContextFactory<MemoSphereDbContext> factory,
+            IActiveLearningService activeLearningService)
         {
             _unitOfWork = unitofWork;
             _questionGeneratorService = questionGeneratorService;
             _authService = authService;
             _factory = factory;
+            _activeLearningService = activeLearningService;
+
         }
 
         public async Task DeleteQuestionAsync(int id)
@@ -358,6 +366,19 @@ namespace Data.Services
             statistic.LastAsked = DateTime.UtcNow;
 
             await context.SaveChangesAsync();
+
+            var question = await context.Questions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(q => q.Id == questionId);
+
+            if (question != null)
+            {
+                await _activeLearningService.UpdateProgressAsync(question.TopicId, isCorrect);
+            }
+            else
+            {
+                Debug.WriteLine($"[RecordAnswerAsync] Hiba: A {questionId} ID-jű kérdés nem található a TopicId lekéréséhez.");
+            }
         }
 
         // SÚLYOZOTT KÉRDÉSEK LEKÉRÉSE

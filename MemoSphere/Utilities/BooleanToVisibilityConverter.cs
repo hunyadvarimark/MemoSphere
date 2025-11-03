@@ -61,4 +61,28 @@ namespace WPF.Utilities
             return Binding.DoNothing;
         }
     }
+    public class InvertedBoolToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            bool boolValue = false;
+            if (value is bool b)
+            {
+                boolValue = b;
+            }
+            else if (value is int i)
+            {
+                // Ha a szám (pl. Count) nagyobb 0-nál, az 'true'
+                boolValue = (i > 0);
+            }
+
+            // A normál konverterrel ellentétben itt a 'true'-ra Collapsed-et adunk
+            return boolValue ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

@@ -1,4 +1,4 @@
-﻿<Window x:Class="MemoSphere.WPF.MainWindow"
+<Window x:Class="MemoSphere.WPF.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:WPF.Views"
@@ -144,7 +144,7 @@
                    BorderThickness="0,0,1,0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <views:DashboardView Margin="0,0,0,24" DataContext="{Binding DashboardVM}" />
+                        <views:DashboardView Margin="0,0,0,24" />
                         <!-- TANTÁRGYAK -->
                         <TextBlock Text="📚 TANTÁRGYAK"
                                   FontSize="12"
@@ -806,7 +806,7 @@
               Visibility="{Binding IsQuizActive, Converter={StaticResource BooleanToVisibilityConverter}}"
               Background="#CC000000"
               Panel.ZIndex="20">
-            <Border MaxWidth="1000"
+            <Border MaxWidth="1000"đ
                     MaxHeight="720"
                     Background="White"
                     CornerRadius="20"
@@ -819,4 +819,4 @@
             </Border>
         </Grid>
     </Grid>
-</Window>
+</Window>đ

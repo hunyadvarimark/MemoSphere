@@ -17,9 +17,24 @@ namespace WPF.ViewModels.Topics
                 OnPropertyChanged();
             }
         }
+
+        private bool _isActive;
+        public bool IsActive
+        {
+            get => _isActive;
+            set
+            {
+                if (_isActive != value)
+                {
+                    _isActive = value;
+                    OnPropertyChanged(nameof(IsActive));
+                }
+            }
+        }
         public TopicViewModel(Topic topic)
         {
             Topic = topic;
+            _isActive = false;
         }
     }
 }

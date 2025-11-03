@@ -17,6 +17,12 @@ namespace WPF.ViewModels.Subjects
                 OnPropertyChanged();
             }
         }
+        private bool _isExpanded = true;
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set => SetProperty(ref _isExpanded, value);
+        }
         public SubjectViewModel(Subject subject)
         {
             Subject = subject;

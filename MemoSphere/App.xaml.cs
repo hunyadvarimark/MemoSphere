@@ -8,11 +8,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Windows;
 using WPF.ViewModels;
+using WPF.ViewModels.Dashboard;
 using WPF.ViewModels.Notes;
 using WPF.ViewModels.Questions;
 using WPF.ViewModels.Quiz;
@@ -123,6 +122,7 @@ namespace MemoSphere.WPF
                     services.AddTransient<IDocumentImportService>(sp =>
                         new DocumentImportService(sp.GetRequiredService<IQuestionGeneratorService>())
                     );
+                    services.AddTransient<IActiveLearningService, ActiveLearningService>();
 
                     // ViewModels
                     services.AddSingleton<SubjectListViewModel>();
@@ -134,6 +134,7 @@ namespace MemoSphere.WPF
                     services.AddSingleton<NoteDetailViewModel>();
                     services.AddSingleton<QuestionDetailViewModel>();
                     services.AddSingleton<QuizViewModel>();
+                    services.AddSingleton<DashboardViewModel>();
 
                     // Coordinators és Handlers
                     services.AddSingleton<HierarchyCoordinator>(provider =>
@@ -168,14 +169,12 @@ namespace MemoSphere.WPF
         protected override async void OnStartup(StartupEventArgs e)
         {
             await _host.StartAsync();
-
             Debug.WriteLine("=== Alkalmazás indítása ===");
 
             if (e.Args.Length > 0)
             {
                 var argument = e.Args[0];
                 Debug.WriteLine($"📧 Startup argument kapva: {argument}");
-
                 if (argument.StartsWith("memosphere://auth/callback"))
                 {
                     Debug.WriteLine("✉️ Email confirmation callback észlelve!");
@@ -183,64 +182,106 @@ namespace MemoSphere.WPF
                     return; // NE folytassuk a normál indítást
                 }
             }
+
             try
             {
-                // Adatbázis migráció
+                // Adatbázis migráció (már try-catch-ben van, de logoljuk részletesebben)
                 using (var scope = _host.Services.CreateScope())
                 {
                     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<MemoSphereDbContext>>();
                     using var dbContext = factory.CreateDbContext();
+                    Debug.WriteLine("🔄 Adatbázis migráció indítása...");
                     await dbContext.Database.MigrateAsync();
-                    Debug.WriteLine("Adatbázis migráció befejezve");
+                    Debug.WriteLine("✅ Adatbázis migráció befejezve");
                 }
 
                 // Supabase inicializálás
                 var supabaseClient = _host.Services.GetRequiredService<Supabase.Client>();
                 await supabaseClient.InitializeAsync();
-                Debug.WriteLine("Supabase inicializálva");
+                Debug.WriteLine("✅ Supabase inicializálva");
 
                 var authService = _host.Services.GetRequiredService<IAuthService>();
                 var isAuthenticated = await authService.IsAuthenticatedAsync();
-
-                Debug.WriteLine($"IsAuthenticated: {isAuthenticated}");
+                Debug.WriteLine($"👤 IsAuthenticated: {isAuthenticated}");
 
                 if (isAuthenticated)
                 {
                     var currentUser = authService.GetCurrentUserEmail();
-                    Debug.WriteLine($"Bejelentkezett felhasználó: {currentUser}");
+                    Debug.WriteLine($"👤 Bejelentkezett felhasználó: {currentUser}");
 
-                    // MainWindow betöltése
-                    var mainWindow = _host.Services.GetRequiredService<MainWindow>();
-                    await mainWindow.LoadDataAsync();
-                    mainWindow.Show();
+                    try
+                    {
+                        var activeLearningService = _host.Services.GetRequiredService<IActiveLearningService>();
+                        Debug.WriteLine("🔄 Streak-ek ellenőrzése indítása...");
+                        await activeLearningService.CheckStreaksOnLoginAsync();
+                        Debug.WriteLine("✅ Streak-ek ellenőrzése befejeződött.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"❌ Hiba a streak-ek ellenőrzésekor: {ex.Message}\nStackTrace: {ex.StackTrace}\nInnerException: {ex.InnerException?.Message}");
+                    }
+                    try
+                    {
+                        Debug.WriteLine("🖥️ MainWindow inicializálása indítása...");
+                        var mainWindow = _host.Services.GetRequiredService<MainWindow>();
+                        Debug.WriteLine("🔄 LoadDataAsync hívása...");
+                        await mainWindow.LoadDataAsync();
+                        Debug.WriteLine("✅ LoadDataAsync befejezve");
+                        mainWindow.Show();
+                        Debug.WriteLine("✅ MainWindow megjelenítve");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"❌ Hiba a MainWindow betöltése során: {ex.Message}\nStackTrace: {ex.StackTrace}\nInnerException: {ex.InnerException?.Message}");
+                        MessageBox.Show(
+                            $"Hiba az alkalmazás indításakor (MainWindow):\n\n{ex.Message}",
+                            "Kritikus hiba",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error
+                        );
+                        Shutdown();
+                    }
                 }
                 else
                 {
-                    Debug.WriteLine("Nincs érvényes session - LoginWindow megnyitása");
-
+                    Debug.WriteLine("🚫 Nincs érvényes session - LoginWindow megnyitása");
                     try
                     {
                         await authService.SignOutAsync();
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"❌ SignOut hiba: {ex.Message}");
+                    }
 
-                    // LoginWindow megnyitása
-                    var loginWindow = _host.Services.GetRequiredService<LoginWindow>();
-                    loginWindow.Show();
+                    // LoginWindow megnyitása - Itt is try-catch, ha kell
+                    try
+                    {
+                        var loginWindow = _host.Services.GetRequiredService<LoginWindow>();
+                        loginWindow.Show();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"❌ Hiba a LoginWindow megnyitásakor: {ex.Message}\nStackTrace: {ex.StackTrace}");
+                        MessageBox.Show(
+                            $"Hiba az alkalmazás indításakor (LoginWindow):\n\n{ex.Message}",
+                            "Kritikus hiba",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error
+                        );
+                        Shutdown();
+                    }
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"HIBA az indítás során: {ex.Message}");
-                Debug.WriteLine($"StackTrace: {ex.StackTrace}");
-
+                Debug.WriteLine($"❌ HIBA az indítás során: {ex.Message}\nStackTrace: {ex.StackTrace}\nInnerException: {ex.InnerException?.Message}");
                 MessageBox.Show(
                     $"Hiba az alkalmazás indításakor:\n\n{ex.Message}",
                     "Kritikus hiba",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error
                 );
-
                 Shutdown();
             }
 

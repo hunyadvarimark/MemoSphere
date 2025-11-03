@@ -11,7 +11,9 @@ namespace Data.Context
         public DbSet<Question> Questions { get; set; }
         public DbSet<Answer> Answers { get; set; }
         public DbSet<NoteChunk> NoteChunks { get; set; }
-        public DbSet<QuestionStatistic> QuestionStatistics { get; set; } // ÚJ SOR
+        public DbSet<QuestionStatistic> QuestionStatistics { get; set; }
+        public DbSet<ActiveTopic> ActiveTopics { get; set; }
+        public DbSet<DailyProgress> DailyProgresses { get; set; }
 
         public MemoSphereDbContext(DbContextOptions<MemoSphereDbContext> options)
            : base(options)
@@ -26,7 +28,7 @@ namespace Data.Context
             modelBuilder.Entity<Question>().Property(q => q.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<Answer>().Property(a => a.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<NoteChunk>().Property(nc => nc.Id).ValueGeneratedOnAdd();
-            modelBuilder.Entity<QuestionStatistic>().Property(qs => qs.Id).ValueGeneratedOnAdd(); // ÚJ SOR
+            modelBuilder.Entity<QuestionStatistic>().Property(qs => qs.Id).ValueGeneratedOnAdd();
 
             modelBuilder.Entity<Question>()
                 .HasMany(q => q.Answers)
@@ -75,6 +77,30 @@ namespace Data.Context
 
             modelBuilder.Entity<QuestionStatistic>()
                 .Ignore(qs => qs.SuccessRate);
+
+            modelBuilder.Entity<ActiveTopic>().Property(at => at.Id).ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<ActiveTopic>()
+                .HasOne(at => at.Topic) 
+                .WithMany() 
+                .HasForeignKey(at => at.TopicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ActiveTopic>()
+                .HasIndex(at => new { at.UserId, at.TopicId })
+                .IsUnique();
+
+            modelBuilder.Entity<DailyProgress>().Property(dp => dp.Id).ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<DailyProgress>()
+                .HasOne<Topic>()
+                .WithMany()
+                .HasForeignKey(dp => dp.TopicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<DailyProgress>()
+                .HasIndex(dp => new { dp.UserId, dp.TopicId, dp.Date })
+                .IsUnique();
         }
     }
 }
