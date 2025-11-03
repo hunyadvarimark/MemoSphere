@@ -12,14 +12,11 @@ namespace WPF.ViewModels.Notes
     {
         private readonly INoteService _noteService;
         private readonly IDocumentImportService _documentImportService;
-
         private readonly QuestionListViewModel _questionListVM;
 
         private Note _note;
         private bool _isActive;
         private bool _hasUnsavedChanges;
-        //private bool _isGenerating = false;
-        //private string _generationStatus = string.Empty;
 
         public Note Note
         {
@@ -60,6 +57,11 @@ namespace WPF.ViewModels.Notes
                     OnPropertyChanged();
                     HasUnsavedChanges = true;
                     SaveCommand.RaiseCanExecuteChanged();
+
+                    if (!_isInEditMode)
+                    {
+                        IsMarkdownContent = DetectMarkdownContent(value);
+                    }
                 }
             }
         }
@@ -75,7 +77,9 @@ namespace WPF.ViewModels.Notes
             get => _hasUnsavedChanges;
             set => SetProperty(ref _hasUnsavedChanges, value);
         }
+
         public bool IsGenerating => _questionListVM.IsGenerating;
+
         public string GenerationStatus => _questionListVM.IsGenerating
             ? "🤖 AI kérdések generálása folyamatban..."
             : string.Empty;
@@ -96,6 +100,28 @@ namespace WPF.ViewModels.Notes
             set => SetProperty(ref _importStatus, value);
         }
 
+        private bool _isMarkdownContent = false;
+        public bool IsMarkdownContent
+        {
+            get => _isMarkdownContent;
+            set
+            {
+                if (SetProperty(ref _isMarkdownContent, value))
+                {
+                    if (value)
+                    {
+                        _isInEditMode = false;
+                    }
+                    else
+                    {
+                        _isInEditMode = true;
+                    }
+                }
+            }
+        }
+
+        private bool _isInEditMode = false;
+
         public ObservableCollection<Question> Questions => _questionListVM.Questions;
 
         public IEnumerable<Question> DistinctQuestions => Questions.GroupBy(q => q.Text).Select(g => g.First());
@@ -106,6 +132,7 @@ namespace WPF.ViewModels.Notes
         public AsyncCommand<object> GenerateQuestionsCommand { get; }
         public RelayCommand ActivateCommand { get; }
         public RelayCommand ImportPdfCommand { get; }
+        public RelayCommand ToggleEditModeCommand { get; }
 
         // Events
         public event Action<NoteTabViewModel> CloseRequested;
@@ -113,10 +140,10 @@ namespace WPF.ViewModels.Notes
         public event Action<NoteTabViewModel> ActivateRequested;
 
         public NoteTabViewModel(
-    Note note,
-    INoteService noteService,
-    QuestionListViewModel questionListVM,
-    IDocumentImportService documentImportService)
+            Note note,
+            INoteService noteService,
+            QuestionListViewModel questionListVM,
+            IDocumentImportService documentImportService)
         {
             _note = note ?? throw new ArgumentNullException(nameof(note));
             _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
@@ -128,6 +155,7 @@ namespace WPF.ViewModels.Notes
             GenerateQuestionsCommand = _questionListVM.GenerateQuestionsCommand;
             ActivateCommand = new RelayCommand(_ => ActivateRequested?.Invoke(this));
             ImportPdfCommand = new RelayCommand(_ => ImportPdfAsync());
+            ToggleEditModeCommand = new RelayCommand(_ => ToggleEditMode());
 
             _questionListVM.PropertyChanged += (s, e) =>
             {
@@ -149,6 +177,34 @@ namespace WPF.ViewModels.Notes
                 OnPropertyChanged(nameof(HasQuestions));
                 OnPropertyChanged(nameof(DistinctQuestions));
             };
+
+            bool hasMarkdown = DetectMarkdownContent(note?.Content);
+            IsMarkdownContent = hasMarkdown;
+
+            // Ha van markdown, preview mód (edit mode = false), különben edit mód (edit mode = true)
+            _isInEditMode = !hasMarkdown;
+        }
+
+        private void ToggleEditMode()
+        {
+            IsMarkdownContent = !IsMarkdownContent;
+
+            // Ha szerkesztési módba váltunk és van markdown, adjunk figyelmeztetést
+            if (!IsMarkdownContent && DetectMarkdownContent(Content))
+            {
+                var result = System.Windows.MessageBox.Show(
+                    "Szerkesztési módba váltasz. A Markdown/LaTeX formázás csak előnézeti módban látható.\n\n" +
+                    "Folytatod?",
+                    "Szerkesztési mód",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Information);
+
+                if (result != System.Windows.MessageBoxResult.Yes)
+                {
+                    IsMarkdownContent = true; // Visszaváltunk preview-ra
+                    return;
+                }
+            }
         }
 
         private async Task LoadQuestionsAsync()
@@ -178,6 +234,12 @@ namespace WPF.ViewModels.Notes
             {
                 NoteSaved?.Invoke(Note);
                 HasUnsavedChanges = false;
+
+                // ✅ Mentés után preview módba, HA van markdown
+                if (DetectMarkdownContent(Content))
+                {
+                    IsMarkdownContent = true; // Ez automatikusan beállítja _isInEditMode = false
+                }
 
                 if (Note.Id > 0)
                 {
@@ -223,6 +285,7 @@ namespace WPF.ViewModels.Notes
                 await LoadQuestionsAsync();
             }
         }
+
         private async void ImportPdfAsync()
         {
             var openFileDialog = new Microsoft.Win32.OpenFileDialog
@@ -240,11 +303,9 @@ namespace WPF.ViewModels.Notes
                 var filePath = openFileDialog.FileName;
                 var fileName = System.IO.Path.GetFileNameWithoutExtension(filePath);
 
-                // Loading state
                 IsImporting = true;
                 ImportStatus = "📄 PDF beolvasása folyamatban...";
 
-                // Szöveg kinyerése
                 var extractedText = await _documentImportService.ExtractTextFromPdfAsync(filePath);
 
                 if (string.IsNullOrWhiteSpace(extractedText))
@@ -258,10 +319,8 @@ namespace WPF.ViewModels.Notes
                     return;
                 }
 
-                // Jegyzet frissítése
                 if (Note.Id == 0 || string.IsNullOrWhiteSpace(Content))
                 {
-                    // Új jegyzet vagy üres tartalom → egyszerű beállítás
                     if (string.IsNullOrWhiteSpace(Title) || Title == "Új jegyzet")
                     {
                         Title = fileName;
@@ -271,7 +330,6 @@ namespace WPF.ViewModels.Notes
                 }
                 else
                 {
-                    // Meglévő tartalom → kérdezzük meg a usert
                     var result = System.Windows.MessageBox.Show(
                         $"A jegyzet már tartalmaz szöveget.\n\n" +
                         $"• IGEN: Hozzáfűzés a meglévő tartalomhoz\n" +
@@ -283,12 +341,12 @@ namespace WPF.ViewModels.Notes
 
                     if (result == System.Windows.MessageBoxResult.Yes)
                     {
-                        Content += "\n\n" + extractedText; // Hozzáfűzés
+                        Content += "\n\n" + extractedText;
                         ImportStatus = $"✅ {fileName} hozzáfűzve!";
                     }
                     else if (result == System.Windows.MessageBoxResult.No)
                     {
-                        Content = extractedText; // Csere
+                        Content = extractedText;
                         ImportStatus = $"✅ {fileName} lecserélve!";
                     }
                     else
@@ -298,13 +356,16 @@ namespace WPF.ViewModels.Notes
                     }
                 }
 
+                IsMarkdownContent = true;
+
                 HasUnsavedChanges = true;
                 SaveCommand.RaiseCanExecuteChanged();
 
                 System.Windows.MessageBox.Show(
                     $"PDF sikeresen importálva!\n\n" +
                     $"Fájl: {fileName}\n" +
-                    $"Karakterek: {extractedText.Length:N0}",
+                    $"Karakterek: {extractedText.Length:N0}\n\n" +
+                    $"💡 Tipp: Használd a 'Szerkesztés' gombot a tartalom módosításához.",
                     "Sikeres Import",
                     System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Information);
@@ -339,14 +400,23 @@ namespace WPF.ViewModels.Notes
             finally
             {
                 IsImporting = false;
-
-                // Status üzenet törlése 3 másodperc után
                 await Task.Delay(3000);
                 if (!IsImporting)
                 {
                     ImportStatus = string.Empty;
                 }
             }
+        }
+
+        private bool DetectMarkdownContent(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return false;
+
+            return (content.Contains("$$") && content.Contains("\\")) || // LaTeX
+                   (content.Contains("###") && content.Length > 200) ||    // Markdown címek
+                   (content.Contains("##") && content.Length > 200) ||
+                   (content.Contains("**") && content.Length > 500);      // Markdown bold (hosszú szövegben)
         }
     }
 }

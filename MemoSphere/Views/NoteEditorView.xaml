@@ -3,6 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:converters="clr-namespace:WPF.Utilities"
+             xmlns:utilities="clr-namespace:WPF.Utilities"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              Background="White">
 
     <UserControl.Resources>
@@ -120,36 +122,61 @@
 
             <!-- Tartalom szerkesztő -->
             <Border Grid.Row="1" Padding="20">
-                <TextBox Text="{Binding Content, UpdateSourceTrigger=PropertyChanged}"
-                         AcceptsReturn="True"
-                         TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Auto"
-                         BorderThickness="0"
-                         Background="Transparent"
-                         FontSize="15"
-                         Foreground="#2C3E50"
-                         Padding="2">
-                    <TextBox.Style>
-                        <Style TargetType="TextBox">
-                            <Style.Triggers>
-                                <Trigger Property="Text" Value="">
-                                    <Setter Property="Background">
-                                        <Setter.Value>
-                                            <VisualBrush Stretch="None" AlignmentX="Left" AlignmentY="Top">
-                                                <VisualBrush.Visual>
-                                                    <TextBlock Text="Kezdj el írni..." 
-                                                              Foreground="#BDBDBD" 
-                                                              FontSize="15"
-                                                              Margin="2,0,0,0"/>
-                                                </VisualBrush.Visual>
-                                            </VisualBrush>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBox.Style>
-                </TextBox>
+                <Grid>
+                    <!-- SZERKESZTHETŐ MÓD: TextBox (kézzel írt jegyzetek) -->
+                    <TextBox Text="{Binding Content, UpdateSourceTrigger=PropertyChanged}"
+                 AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 VerticalScrollBarVisibility="Auto"
+                 BorderThickness="0"
+                 Background="Transparent"
+                 FontSize="15"
+                 Foreground="#2C3E50"
+                 Padding="2">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <!-- Ha Markdown/LaTeX content, rejtjük a TextBox-ot -->
+                                    <DataTrigger Binding="{Binding IsMarkdownContent}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <Trigger Property="Text" Value="">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <VisualBrush Stretch="None" AlignmentX="Left" AlignmentY="Top">
+                                                    <VisualBrush.Visual>
+                                                        <TextBlock Text="Kezdj el írni..." 
+                                                      Foreground="#BDBDBD" 
+                                                      FontSize="15"
+                                                      Margin="2,0,0,0"/>
+                                                    </VisualBrush.Visual>
+                                                </VisualBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+
+                    <!-- OLVASÁSI MÓD: WebView2 (PDF import, Markdown/LaTeX) -->
+                    <Border BorderThickness="0">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMarkdownContent}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+
+                        <wv2:WebView2 x:Name="NoteContentWebView"
+                          utilities:WebViewHelper.HtmlSource="{Binding Content}"/>
+                    </Border>
+                </Grid>
             </Border>
 
             <!-- Action buttons -->
@@ -167,24 +194,25 @@
 
                     <!-- Gombok -->
                     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <!-- 1. PDF Import gomb (MEGLÉVŐ) -->
                         <Button Command="{Binding ImportPdfCommand}"
-        Height="40"
-        Padding="20,0"
-        Margin="0,0,10,0"
-        Background="#FF6F00"
-        Foreground="White"
-        BorderThickness="0"
-        Cursor="Hand">
+            Height="40"
+            Padding="20,0"
+            Margin="0,0,10,0"
+            Background="#FF6F00"
+            Foreground="White"
+            BorderThickness="0"
+            Cursor="Hand">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="Button">
                                                 <Border Background="{TemplateBinding Background}" 
-                               CornerRadius="6"
-                               Padding="{TemplateBinding Padding}">
+                                   CornerRadius="6"
+                                   Padding="{TemplateBinding Padding}">
                                                     <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"/>
+                                                VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
                                         </Setter.Value>
@@ -205,34 +233,107 @@
                             </Button.Style>
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="FilePdfBox" 
-                                Width="18" 
-                                Height="18" 
-                                VerticalAlignment="Center" 
-                                Margin="0,0,8,0"/>
+                                    Width="18" 
+                                    Height="18" 
+                                    VerticalAlignment="Center" 
+                                    Margin="0,0,8,0"/>
                                 <TextBlock Text="📄 PDF Import" 
-                  VerticalAlignment="Center"
-                  FontSize="14"
-                  FontWeight="SemiBold"/>
+                      VerticalAlignment="Center"
+                      FontSize="14"
+                      FontWeight="SemiBold"/>
                             </StackPanel>
                         </Button>
+
+                        <!-- 2. ✅ ÚJ: Toggle Edit Mode gomb -->
+                        <Button Command="{Binding ToggleEditModeCommand}"
+            Height="40"
+            Padding="20,0"
+            Margin="0,0,10,0"
+            BorderThickness="0"
+            Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#4CAF50"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" 
+                                   CornerRadius="6"
+                                   Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter HorizontalAlignment="Center" 
+                                                VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#388E3C"/>
+                                        </Trigger>
+                                        <!-- Ha szerkesztési módban vagyunk (NOT markdown), más szín -->
+                                        <DataTrigger Binding="{Binding IsMarkdownContent}" Value="False">
+                                            <Setter Property="Background" Value="#2196F3"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Width="18" 
+                                    Height="18" 
+                                    VerticalAlignment="Center" 
+                                    Margin="0,0,8,0">
+                                    <materialDesign:PackIcon.Style>
+                                        <Style TargetType="materialDesign:PackIcon">
+                                            <Setter Property="Kind" Value="Eye"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                            <Style.Triggers>
+                                                <!-- Ha szerkesztési módban (NOT markdown), pencil ikon -->
+                                                <DataTrigger Binding="{Binding IsMarkdownContent}" Value="False">
+                                                    <Setter Property="Kind" Value="Pencil"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </materialDesign:PackIcon.Style>
+                                </materialDesign:PackIcon>
+
+                                <TextBlock VerticalAlignment="Center"
+                      FontSize="14"
+                      FontWeight="SemiBold"
+                      Foreground="White">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="👁️ Előnézet"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMarkdownContent}" Value="False">
+                                                    <Setter Property="Text" Value="✏️ Szerkesztés"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- 3. AI Kérdésgenerálás gomb (MEGLÉVŐ) -->
                         <Button Command="{Binding GenerateQuestionsCommand}"
-                    Height="40"
-                    Padding="20,0"
-                    Margin="0,0,10,0"
-                    Background="#9C27B0"
-                    Foreground="White"
-                    BorderThickness="0"
-                    Cursor="Hand">
+            Height="40"
+            Padding="20,0"
+            Margin="0,0,10,0"
+            Background="#9C27B0"
+            Foreground="White"
+            BorderThickness="0"
+            Cursor="Hand">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="Button">
                                                 <Border Background="{TemplateBinding Background}" 
-                                           CornerRadius="6"
-                                           Padding="{TemplateBinding Padding}">
+                                   CornerRadius="6"
+                                   Padding="{TemplateBinding Padding}">
                                                     <ContentPresenter HorizontalAlignment="Center" 
-                                                        VerticalAlignment="Center"/>
+                                                VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
                                         </Setter.Value>
@@ -245,7 +346,6 @@
                                             <Setter Property="Background" Value="#BDBDBD"/>
                                             <Setter Property="Cursor" Value="Arrow"/>
                                         </Trigger>
-                                        <!-- ÚJ: Disable a gomb generálás közben -->
                                         <DataTrigger Binding="{Binding IsGenerating}" Value="True">
                                             <Setter Property="IsEnabled" Value="False"/>
                                         </DataTrigger>
@@ -254,37 +354,38 @@
                             </Button.Style>
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="AutoFix" 
-                                            Width="18" 
-                                            Height="18" 
-                                            VerticalAlignment="Center" 
-                                            Margin="0,0,8,0"/>
+                                    Width="18" 
+                                    Height="18" 
+                                    VerticalAlignment="Center" 
+                                    Margin="0,0,8,0"/>
                                 <TextBlock Text="🤖 AI Kérdésgenerálás" 
-                              VerticalAlignment="Center"
-                              FontSize="14"
-                              FontWeight="SemiBold"/>
+                      VerticalAlignment="Center"
+                      FontSize="14"
+                      FontWeight="SemiBold"/>
                             </StackPanel>
                         </Button>
 
+                        <!-- 4. Mentés gomb (MEGLÉVŐ) -->
                         <Button Command="{Binding SaveCommand}"
-                    Content="💾 Mentés"
-                    Height="40"
-                    Padding="25,0"
-                    Background="#2196F3"
-                    Foreground="White"
-                    FontSize="14"
-                    FontWeight="SemiBold"
-                    BorderThickness="0"
-                    Cursor="Hand">
+            Content="💾 Mentés"
+            Height="40"
+            Padding="25,0"
+            Background="#2196F3"
+            Foreground="White"
+            FontSize="14"
+            FontWeight="SemiBold"
+            BorderThickness="0"
+            Cursor="Hand">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="Button">
                                                 <Border Background="{TemplateBinding Background}" 
-                                           CornerRadius="6"
-                                           Padding="{TemplateBinding Padding}">
+                                   CornerRadius="6"
+                                   Padding="{TemplateBinding Padding}">
                                                     <ContentPresenter HorizontalAlignment="Center" 
-                                                        VerticalAlignment="Center"/>
+                                                VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
                                         </Setter.Value>
