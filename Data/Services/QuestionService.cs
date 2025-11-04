@@ -495,5 +495,33 @@ namespace Data.Services
 
             return weight;
         }
+        public async Task DeleteQuestionsForNoteAsync(int noteId)
+        {
+            var userId = _authService.GetCurrentUserId();
+            if (userId == Guid.Empty)
+                throw new InvalidOperationException("User not authenticated");
+
+            using var context = _factory.CreateDbContext();
+
+            // Lekérjük az összes kérdést ehhez a jegyzethez
+            var questions = await context.Questions
+                .Include(q => q.Answers) // ← FONTOS: Válaszokat is töröljük!
+                .Where(q => q.UserId == userId && q.SourceNoteId == noteId)
+                .ToListAsync();
+
+            if (questions.Any())
+            {
+                Console.WriteLine($"🗑️ Törlés: {questions.Count} kérdés a jegyzethez (NoteId: {noteId})");
+
+                context.Questions.RemoveRange(questions);
+                await context.SaveChangesAsync();
+
+                Console.WriteLine($"✅ {questions.Count} kérdés sikeresen törölve");
+            }
+            else
+            {
+                Console.WriteLine($"ℹ️ Nincs törlendő kérdés (NoteId: {noteId})");
+            }
+        }
     }
 }

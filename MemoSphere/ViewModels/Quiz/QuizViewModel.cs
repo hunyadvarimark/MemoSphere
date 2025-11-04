@@ -15,7 +15,9 @@ namespace WPF.ViewModels.Quiz
         private readonly IQuestionService _questionService;
         private readonly DispatcherTimer _timer;
         private readonly int _quizDurationInSeconds = 300;
+        
         private readonly int _requiredQuestionCount = 10;
+        private readonly int _minRequiredQuestionCount = 3;
 
         private bool _canStartQuiz = false;
 
@@ -120,12 +122,22 @@ namespace WPF.ViewModels.Quiz
                     return;
                 }
 
-                // Kérünk 10 kérdést a kiválasztott témakörökből
-                var questions = await _quizService.GetRandomQuestionsForQuizAsync(topicIds, _requiredQuestionCount);
+                var availableCount = await _quizService.GetQuestionCountForTopicsAsync(topicIds);
+                int questionsToLoad = Math.Min(_requiredQuestionCount, availableCount);
 
-                if (questions.Count < _requiredQuestionCount)
+                // Ha nincs elég kérdés, ellenőrizzük, hogy eléri-e a minimumot
+                if (availableCount < _minRequiredQuestionCount)
                 {
-                    MessageBox.Show("Nincs elég elérhető kérdés a kiválasztott témakörökből.");
+                    MessageBox.Show($"Túl kevés kérdés van ({availableCount}). Legalább {_minRequiredQuestionCount} szükséges a kvízhez.");
+                    return;
+                }
+
+                // Kérdések lekérése (akár kevesebb, mint 10)
+                var questions = await _quizService.GetRandomQuestionsForQuizAsync(topicIds, questionsToLoad);
+
+                if (questions == null || !questions.Any())
+                {
+                    MessageBox.Show("Nem sikerült kérdéseket betölteni a kvízhez.");
                     return;
                 }
 
@@ -405,7 +417,7 @@ namespace WPF.ViewModels.Quiz
                     System.Diagnostics.Debug.WriteLine($"📊 Required count: {_requiredQuestionCount}");
 
                     var oldValue = CanStartQuiz;
-                    CanStartQuiz = questionCount >= _requiredQuestionCount;
+                    CanStartQuiz = questionCount >= _minRequiredQuestionCount;
 
                     System.Diagnostics.Debug.WriteLine($"✅ CanStartQuiz: {oldValue} → {CanStartQuiz}");
                     System.Diagnostics.Debug.WriteLine($"🔔 Raising LoadQuizCommand.CanExecuteChanged");

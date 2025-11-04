@@ -17,6 +17,7 @@ namespace WPF.ViewModels.Notes
         private Note _note;
         private bool _isActive;
         private bool _hasUnsavedChanges;
+        private string _originalContent; // ✅ Eredeti tartalom nyilvántartása
 
         public Note Note
         {
@@ -27,6 +28,8 @@ namespace WPF.ViewModels.Notes
                 {
                     OnPropertyChanged(nameof(Title));
                     OnPropertyChanged(nameof(Content));
+                    // ✅ Eredeti tartalom tárolása betöltéskor
+                    _originalContent = value?.Content ?? string.Empty;
                 }
             }
         }
@@ -122,6 +125,28 @@ namespace WPF.ViewModels.Notes
 
         private bool _isInEditMode = false;
 
+        private string _notificationMessage;
+        public string NotificationMessage
+        {
+            get => _notificationMessage;
+            set
+            {
+                if (SetProperty(ref _notificationMessage, value))
+                {
+                    OnPropertyChanged(nameof(HasNotification));
+                }
+            }
+        }
+
+        private string _notificationType = "Info";
+        public string NotificationType
+        {
+            get => _notificationType;
+            set => SetProperty(ref _notificationType, value);
+        }
+
+        public bool HasNotification => !string.IsNullOrEmpty(NotificationMessage);
+
         public ObservableCollection<Question> Questions => _questionListVM.Questions;
 
         public IEnumerable<Question> DistinctQuestions => Questions.GroupBy(q => q.Text).Select(g => g.First());
@@ -133,6 +158,7 @@ namespace WPF.ViewModels.Notes
         public RelayCommand ActivateCommand { get; }
         public RelayCommand ImportPdfCommand { get; }
         public RelayCommand ToggleEditModeCommand { get; }
+        public RelayCommand CloseNotificationCommand { get; }
 
         // Events
         public event Action<NoteTabViewModel> CloseRequested;
@@ -150,12 +176,16 @@ namespace WPF.ViewModels.Notes
             _questionListVM = questionListVM ?? throw new ArgumentNullException(nameof(questionListVM));
             _documentImportService = documentImportService ?? throw new ArgumentNullException(nameof(documentImportService));
 
+            // ✅ Eredeti tartalom mentése inicializáláskor
+            _originalContent = note?.Content ?? string.Empty;
+
             SaveCommand = new AsyncCommand<object>(SaveNoteAsync, CanSave);
             CloseCommand = new RelayCommand(_ => RequestClose());
             GenerateQuestionsCommand = _questionListVM.GenerateQuestionsCommand;
             ActivateCommand = new RelayCommand(_ => ActivateRequested?.Invoke(this));
             ImportPdfCommand = new RelayCommand(_ => ImportPdfAsync());
             ToggleEditModeCommand = new RelayCommand(_ => ToggleEditMode());
+            CloseNotificationCommand = new RelayCommand(_ => NotificationMessage = null);
 
             _questionListVM.PropertyChanged += (s, e) =>
             {
@@ -180,16 +210,25 @@ namespace WPF.ViewModels.Notes
 
             bool hasMarkdown = DetectMarkdownContent(note?.Content);
             IsMarkdownContent = hasMarkdown;
-
-            // Ha van markdown, preview mód (edit mode = false), különben edit mód (edit mode = true)
             _isInEditMode = !hasMarkdown;
+        }
+
+        private async void ShowNotification(string type, string message, int durationMs = 3000)
+        {
+            NotificationType = type;
+            NotificationMessage = message;
+
+            await Task.Delay(durationMs);
+            if (NotificationMessage == message)
+            {
+                NotificationMessage = null;
+            }
         }
 
         private void ToggleEditMode()
         {
             IsMarkdownContent = !IsMarkdownContent;
 
-            // Ha szerkesztési módba váltunk és van markdown, adjunk figyelmeztetést
             if (!IsMarkdownContent && DetectMarkdownContent(Content))
             {
                 var result = System.Windows.MessageBox.Show(
@@ -201,7 +240,7 @@ namespace WPF.ViewModels.Notes
 
                 if (result != System.Windows.MessageBoxResult.Yes)
                 {
-                    IsMarkdownContent = true; // Visszaváltunk preview-ra
+                    IsMarkdownContent = true;
                     return;
                 }
             }
@@ -216,6 +255,7 @@ namespace WPF.ViewModels.Notes
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Hiba a kérdések betöltésekor: {ex.Message}");
+                ShowNotification("Error", $"❌ Hiba a kérdések betöltésekor: {ex.Message}", 5000);
             }
         }
 
@@ -232,13 +272,52 @@ namespace WPF.ViewModels.Notes
 
             try
             {
+                // ✅ ELLENŐRZÉS: Van-e kérdés ÉS megváltozott-e a tartalom?
+                bool contentChanged = Note.Id > 0 && Content != _originalContent;
+                bool hasExistingQuestions = HasQuestions && Questions.Count > 0;
+
+                if (contentChanged && hasExistingQuestions)
+                {
+                    var questionCount = Questions.Count;
+                    var result = System.Windows.MessageBox.Show(
+                        $"⚠️ FIGYELEM!\n\n" +
+                        $"A jegyzet tartalma megváltozott.\n" +
+                        $"Az ehhez kapcsolódó {questionCount} db generált kérdés törlődni fog!\n\n" +
+                        $"Biztosan folytatod a mentést?",
+                        "Kérdések törlése",
+                        System.Windows.MessageBoxButton.YesNo,
+                        System.Windows.MessageBoxImage.Warning);
+
+                    if (result != System.Windows.MessageBoxResult.Yes)
+                    {
+                        ShowNotification("Info", "ℹ️ Mentés megszakítva", 3000);
+                        return;
+                    }
+
+                    // ✅ KÉRDÉSEK TÖRLÉSE AZ ADATBÁZISBÓL!
+                    await _questionListVM.DeleteAllQuestionsForCurrentNoteAsync();
+                }
+
+                // ✅ Mentés végrehajtása
                 NoteSaved?.Invoke(Note);
                 HasUnsavedChanges = false;
 
-                // ✅ Mentés után preview módba, HA van markdown
+                // ✅ Sikeres mentés értesítés
+                if (contentChanged && hasExistingQuestions)
+                {
+                    ShowNotification("Success", $"✅ Jegyzet mentve! Kérdések törölve.", 4000);
+                }
+                else
+                {
+                    ShowNotification("Success", "✅ Jegyzet sikeresen mentve!", 3000);
+                }
+
+                // ✅ Eredeti tartalom frissítése mentés után
+                _originalContent = Content;
+
                 if (DetectMarkdownContent(Content))
                 {
-                    IsMarkdownContent = true; // Ez automatikusan beállítja _isInEditMode = false
+                    IsMarkdownContent = true;
                 }
 
                 if (Note.Id > 0)
@@ -248,6 +327,7 @@ namespace WPF.ViewModels.Notes
             }
             catch (Exception ex)
             {
+                ShowNotification("Error", $"❌ Hiba a mentés során: {ex.Message}", 5000);
                 System.Windows.MessageBox.Show(
                     $"Hiba a mentés során: {ex.Message}",
                     "Hiba",
@@ -276,6 +356,7 @@ namespace WPF.ViewModels.Notes
         public void MarkAsSaved()
         {
             HasUnsavedChanges = false;
+            _originalContent = Content;
         }
 
         public async Task RefreshQuestionsAsync()
@@ -310,6 +391,7 @@ namespace WPF.ViewModels.Notes
 
                 if (string.IsNullOrWhiteSpace(extractedText))
                 {
+                    ShowNotification("Warning", "⚠️ A PDF fájl üres vagy nem tartalmaz szöveget", 4000);
                     System.Windows.MessageBox.Show(
                         "A PDF fájl üres vagy nem tartalmaz szöveget.",
                         "Figyelmeztetés",
@@ -327,6 +409,7 @@ namespace WPF.ViewModels.Notes
                     }
                     Content = extractedText;
                     ImportStatus = $"✅ {fileName} sikeresen importálva!";
+                    ShowNotification("Success", $"✅ PDF sikeresen importálva! ({extractedText.Length:N0} karakter)", 4000);
                 }
                 else
                 {
@@ -343,21 +426,23 @@ namespace WPF.ViewModels.Notes
                     {
                         Content += "\n\n" + extractedText;
                         ImportStatus = $"✅ {fileName} hozzáfűzve!";
+                        ShowNotification("Success", $"✅ PDF tartalom hozzáfűzve!", 4000);
                     }
                     else if (result == System.Windows.MessageBoxResult.No)
                     {
                         Content = extractedText;
                         ImportStatus = $"✅ {fileName} lecserélve!";
+                        ShowNotification("Success", $"✅ Tartalom lecserélve PDF-re!", 4000);
                     }
                     else
                     {
                         ImportStatus = "❌ Import megszakítva";
+                        ShowNotification("Info", "ℹ️ Import megszakítva", 3000);
                         return;
                     }
                 }
 
                 IsMarkdownContent = true;
-
                 HasUnsavedChanges = true;
                 SaveCommand.RaiseCanExecuteChanged();
 
@@ -372,6 +457,7 @@ namespace WPF.ViewModels.Notes
             }
             catch (FileNotFoundException ex)
             {
+                ShowNotification("Error", "❌ Fájl nem található", 5000);
                 System.Windows.MessageBox.Show(
                     $"A fájl nem található:\n{ex.Message}",
                     "Hiba",
@@ -381,6 +467,7 @@ namespace WPF.ViewModels.Notes
             }
             catch (InvalidOperationException ex)
             {
+                ShowNotification("Error", "❌ PDF feldolgozási hiba", 5000);
                 System.Windows.MessageBox.Show(
                     $"Nem sikerült a PDF feldolgozása:\n{ex.Message}",
                     "Hiba",
@@ -390,6 +477,7 @@ namespace WPF.ViewModels.Notes
             }
             catch (Exception ex)
             {
+                ShowNotification("Error", $"❌ Váratlan hiba: {ex.Message}", 5000);
                 System.Windows.MessageBox.Show(
                     $"Váratlan hiba történt:\n{ex.Message}",
                     "Hiba",
@@ -413,10 +501,10 @@ namespace WPF.ViewModels.Notes
             if (string.IsNullOrWhiteSpace(content))
                 return false;
 
-            return (content.Contains("$$") && content.Contains("\\")) || // LaTeX
-                   (content.Contains("###") && content.Length > 200) ||    // Markdown címek
+            return (content.Contains("$$") && content.Contains("\\")) ||
+                   (content.Contains("###") && content.Length > 200) ||
                    (content.Contains("##") && content.Length > 200) ||
-                   (content.Contains("**") && content.Length > 500);      // Markdown bold (hosszú szövegben)
+                   (content.Contains("**") && content.Length > 500);
         }
     }
 }

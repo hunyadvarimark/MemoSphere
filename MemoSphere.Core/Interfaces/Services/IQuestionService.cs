@@ -12,5 +12,6 @@ namespace Core.Interfaces.Services
         Task<bool> EvaluateUserShortAnswerAsync(int questionId, string userAnswer);
         Task RecordAnswerAsync(int questionId, bool isCorrect);
         Task<List<Question>> GetWeightedQuestionsAsync(int topicId, int count, QuestionType? type = null);
+        Task DeleteQuestionsForNoteAsync(int noteId);
     }
 }

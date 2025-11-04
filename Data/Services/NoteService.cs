@@ -126,6 +126,28 @@ namespace Data.Services
             {
                 context.Notes.Update(noteToUpdate);
 
+                var existingQuestions = await context.Questions
+                    .Include(q => q.Answers)
+                    .Where(q => q.SourceNoteId == note.Id)
+                    .ToListAsync();
+
+                if (existingQuestions.Any())
+                {
+                    Console.WriteLine($"🗑️ {existingQuestions.Count} elavult kérdés törlése a jegyzethez (ID: {note.Id})");
+
+                    // Először a válaszokat töröljük
+                    foreach (var question in existingQuestions)
+                    {
+                        if (question.Answers.Any())
+                        {
+                            context.Answers.RemoveRange(question.Answers);
+                        }
+                    }
+
+                    // Majd a kérdéseket
+                    context.Questions.RemoveRange(existingQuestions);
+                }
+
                 var existingChunks = await context.NoteChunks.Where(nc => nc.NoteId == note.Id).ToListAsync();
                 if (existingChunks.Any())
                 {
@@ -146,6 +168,7 @@ namespace Data.Services
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                Console.WriteLine($"✅ Jegyzet frissítve (ID: {note.Id}), elavult kérdések törölve");
                 return noteToUpdate;
             }
             catch

@@ -74,6 +74,13 @@ namespace WPF.ViewModels
             set => SetProperty(ref _currentUserEmail, value);
         }
         // UI State
+        private bool _isDialogOpen;
+        public bool IsDialogOpen
+        {
+            get => _isDialogOpen;
+            set => SetProperty(ref _isDialogOpen, value);
+        }
+
         private bool _isAddingSubject;
         public bool IsAddingSubject
         {
@@ -312,6 +319,7 @@ namespace WPF.ViewModels
                 {
                     await _crudHandler.SaveSubjectAsync(subject);
                     IsAddingSubject = false;
+                    IsDialogOpen = false;
                     SubjectDetailVM.ResetState();
                 }
                 catch (Exception ex)
@@ -319,12 +327,14 @@ namespace WPF.ViewModels
                     System.Diagnostics.Debug.WriteLine($"❌ Subject save error: {ex.Message}");
                 }
             };
+
             TopicDetailVM.TopicSavedRequested += async topic =>
             {
                 try
                 {
                     await _crudHandler.SaveTopicAsync(topic);
                     IsAddingTopic = false;
+                    IsDialogOpen = false;
                     TopicDetailVM.ResetState(SubjectsVM.SelectedSubject?.Id ?? 0);
                 }
                 catch (Exception ex)
@@ -378,16 +388,26 @@ namespace WPF.ViewModels
                 }
             };
             // Cancel events
-            SubjectDetailVM.CancelRequested += () => IsAddingSubject = false;
-            TopicDetailVM.CancelRequested += () => IsAddingTopic = false;
+            SubjectDetailVM.CancelRequested += () =>
+            {
+                IsAddingSubject = false;
+                IsDialogOpen = false;
+            };
+            TopicDetailVM.CancelRequested += () =>
+            {
+                IsAddingTopic = false;
+                IsDialogOpen = false;
+            };
             // Edit events
             SubjectsVM.EditSubjectRequested += subject =>
             {
+                IsDialogOpen = true;
                 SubjectDetailVM.LoadSubject(subject);
                 IsAddingSubject = true;
             };
             TopicsVM.EditTopicRequested += topic =>
             {
+                IsDialogOpen = true;
                 TopicDetailVM.LoadTopic(topic);
                 IsAddingTopic = true;
             };

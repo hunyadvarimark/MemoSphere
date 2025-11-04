@@ -11,7 +11,6 @@ namespace WPF.ViewModels.Questions
     {
         private readonly IQuestionService _questionService;
         private int _currentNoteId;
-
         private bool _isGenerating;
         public bool IsGenerating
         {
@@ -24,16 +23,13 @@ namespace WPF.ViewModels.Questions
                 }
             }
         }
-
         public ObservableCollection<Question> Questions { get; } = new();
         public AsyncCommand<object> GenerateQuestionsCommand { get; }
-
         public QuestionListViewModel(IQuestionService questionService)
         {
             _questionService = questionService;
             GenerateQuestionsCommand = new AsyncCommand<object>(GenerateQuestionsForNoteAsync, CanGenerateQuestions);
         }
-
         public async Task LoadQuestionsAsync(int noteId)
         {
             _currentNoteId = noteId;
@@ -48,12 +44,10 @@ namespace WPF.ViewModels.Questions
             }
             GenerateQuestionsCommand.RaiseCanExecuteChanged(); // Frissítjük a gomb állapotát
         }
-
         private bool CanGenerateQuestions(object parameter)
         {
             return _currentNoteId > 0;
         }
-
         public void ClearQuestions()
         {
             Questions.Clear();
@@ -61,31 +55,45 @@ namespace WPF.ViewModels.Questions
         public async Task GenerateQuestionsForNoteAsync(object parameter)
         {
             if (_currentNoteId <= 0) return;
-
             try
             {
+                string message;
+                bool willReplace = Questions.Any();
+                if (willReplace)
+                {
+                    message = "Már vannak generált kérdések ehhez a jegyzethez.\n\n" +
+                              "Lecseréled őket újakra minden típusból?\n\n" +
+                              "• Feleletválasztós\n" +
+                              "• Igaz/Hamis\n" +
+                              "• Rövid válasz\n\n" +
+                              "A kérdések száma a jegyzet tartalmától függ.";
+                }
+                else
+                {
+                    message = "Generáljak kérdéseket minden típusból?\n\n" +
+                              "• Feleletválasztós\n" +
+                              "• Igaz/Hamis\n" +
+                              "• Rövid válasz\n\n" +
+                              "A kérdések száma a jegyzet tartalmától függ.";
+                }
                 var result = MessageBox.Show(
-                    "Generáljak kérdéseket minden típusból?\n\n" +
-                    "• Feleletválasztós\n" +
-                    "• Igaz/Hamis\n" +
-                    "• Rövid válasz\n\n" +
-                    "A kérdések száma a jegyzet tartalmától függ.",
-                    "Kérdésgenerálás",
+                    message,
+                    willReplace ? "Kérdések cseréje" : "Kérdésgenerálás",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
-
                 if (result != MessageBoxResult.Yes) return;
-
                 IsGenerating = true;
+                if (willReplace)
+                {
+                    await DeleteAllQuestionsForCurrentNoteAsync();
+                }
                 var tasks = new[]
                 {
-            _questionService.GenerateAndSaveQuestionsAsync(_currentNoteId, QuestionType.MultipleChoice),
-            _questionService.GenerateAndSaveQuestionsAsync(_currentNoteId, QuestionType.TrueFalse),
-            _questionService.GenerateAndSaveQuestionsAsync(_currentNoteId, QuestionType.ShortAnswer)
-        };
-
+                    _questionService.GenerateAndSaveQuestionsAsync(_currentNoteId, QuestionType.MultipleChoice),
+                    _questionService.GenerateAndSaveQuestionsAsync(_currentNoteId, QuestionType.TrueFalse),
+                    _questionService.GenerateAndSaveQuestionsAsync(_currentNoteId, QuestionType.ShortAnswer)
+                };
                 var results = await Task.WhenAll(tasks);
-
                 if (results.All(r => r))
                 {
                     MessageBox.Show("Kérdések sikeresen generálva!", "Siker",
@@ -107,7 +115,26 @@ namespace WPF.ViewModels.Questions
                 IsGenerating = false;
             }
         }
-
+        public async Task DeleteAllQuestionsForCurrentNoteAsync()
+        {
+            if (_currentNoteId <= 0)
+            {
+                System.Diagnostics.Debug.WriteLine("⚠️ DeleteAllQuestions: Invalid NoteId");
+                return;
+            }
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"🗑️ Deleting questions for NoteId: {_currentNoteId}");
+                await _questionService.DeleteQuestionsForNoteAsync(_currentNoteId);
+                Questions.Clear();
+                System.Diagnostics.Debug.WriteLine($"✅ Questions cleared from UI (Count: {Questions.Count})");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Error deleting questions: {ex.Message}");
+                throw;
+            }
+        }
         private string GetQuestionTypeDisplayName(QuestionType type)
         {
             return type switch
@@ -118,6 +145,5 @@ namespace WPF.ViewModels.Questions
                 _ => type.ToString()
             };
         }
-
     }
 }

@@ -26,6 +26,7 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
 	<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2739.15" />
 	<PackageReference Include="PdfPig" Version="0.1.11" />
+	<PackageReference Include="WpfMath" Version="2.1.0" />
 	<Reference Include="System.Web" />
 	  
   </ItemGroup>

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Data;
 
@@ -84,5 +85,36 @@ namespace WPF.Utilities
         {
             throw new NotImplementedException();
         }
+    }
+    public class IsLatexConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string text)
+            {
+                // Ha tartalmaz \sum, \frac stb., akkor LaTeX
+                bool hasLatex = Regex.IsMatch(text, @"\\[a-zA-Z]+|{.*}|_|\^");
+                return hasLatex;
+            }
+            return false;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+    public class CleanLatexConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string text)
+            {
+                // Távolítsd el a $...$ jelöléseket
+                return text.Replace("$", "").Trim();
+            }
+            return "";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
     }
 }
