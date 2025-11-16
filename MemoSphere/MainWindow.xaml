@@ -11,6 +11,7 @@
         Background="#F5F7FA">
     <Window.Resources>
         <converters:BoolToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter" />
         <!-- Tab Close Button Style -->
         <Style x:Key="TabCloseButton" TargetType="Button">
             <Setter Property="Width" Value="16"/>
@@ -816,6 +817,22 @@
                     <DropShadowEffect BlurRadius="50" Direction="270" ShadowDepth="10" Opacity="0.4"/>
                 </Border.Effect>
                 <views:QuizView DataContext="{Binding QuizVM}"/>
+            </Border>
+        </Grid>
+        <Grid Grid.RowSpan="2" 
+              Visibility="{Binding IsQuizSelectionVisible, Converter={StaticResource BooleanToVisibilityConverter}}" 
+              Background="#CC000000" 
+              Panel.ZIndex="10">
+            <Border Width="600" 
+                    Height="500" 
+                    Background="White"
+                    CornerRadius="16" 
+                    Padding="32">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="40" Direction="270" ShadowDepth="8" Opacity="0.3"/>
+                </Border.Effect>
+
+                <views:QuizTopicSelectionView DataContext="{Binding QuizSelectionVM}" />
             </Border>
         </Grid>
     </Grid>

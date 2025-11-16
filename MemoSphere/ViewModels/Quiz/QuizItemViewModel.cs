@@ -21,15 +21,15 @@ namespace WPF.ViewModels.Quiz
         {
             Question = question ?? throw new ArgumentNullException(nameof(question));
 
-            if (question.Answers == null && !IsShortAnswer || !question.Answers.Any() && !IsShortAnswer)
-            {
-                AnswerOptions = new ObservableCollection<Answer>();
-            }
-            else
+            if (question.Answers != null && question.Answers.Any() && !IsShortAnswer)
             {
                 var random = new Random();
                 var shuffledAnswers = question.Answers.OrderBy(a => random.Next()).ToList();
                 AnswerOptions = new ObservableCollection<Answer>(shuffledAnswers);
+            }
+            else
+            {
+                AnswerOptions = new ObservableCollection<Answer>();
             }
         }
 

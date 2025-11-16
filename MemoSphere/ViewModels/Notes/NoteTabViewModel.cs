@@ -13,6 +13,7 @@ namespace WPF.ViewModels.Notes
         private readonly INoteService _noteService;
         private readonly IDocumentImportService _documentImportService;
         private readonly QuestionListViewModel _questionListVM;
+        private readonly MainViewModel _mainViewModel;
 
         private Note _note;
         private bool _isActive;
@@ -159,23 +160,26 @@ namespace WPF.ViewModels.Notes
         public RelayCommand ImportPdfCommand { get; }
         public RelayCommand ToggleEditModeCommand { get; }
         public RelayCommand CloseNotificationCommand { get; }
+        public RelayCommand StartNoteQuizCommand { get; }
 
         // Events
         public event Action<NoteTabViewModel> CloseRequested;
         public event Action<Note> NoteSaved;
         public event Action<NoteTabViewModel> ActivateRequested;
+        public event Action<int> NoteQuizRequested;
 
         public NoteTabViewModel(
             Note note,
             INoteService noteService,
             QuestionListViewModel questionListVM,
-            IDocumentImportService documentImportService)
+            IDocumentImportService documentImportService,
+            MainViewModel mainViewModel)
         {
             _note = note ?? throw new ArgumentNullException(nameof(note));
             _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
             _questionListVM = questionListVM ?? throw new ArgumentNullException(nameof(questionListVM));
             _documentImportService = documentImportService ?? throw new ArgumentNullException(nameof(documentImportService));
-
+            _mainViewModel = mainViewModel;
             // ✅ Eredeti tartalom mentése inicializáláskor
             _originalContent = note?.Content ?? string.Empty;
 
@@ -186,6 +190,10 @@ namespace WPF.ViewModels.Notes
             ImportPdfCommand = new RelayCommand(_ => ImportPdfAsync());
             ToggleEditModeCommand = new RelayCommand(_ => ToggleEditMode());
             CloseNotificationCommand = new RelayCommand(_ => NotificationMessage = null);
+            StartNoteQuizCommand = new RelayCommand(
+                _ => NoteQuizRequested?.Invoke(Note.Id),
+                _ => Note.Id > 0 && HasQuestions
+            );
 
             _questionListVM.PropertyChanged += (s, e) =>
             {
@@ -206,6 +214,8 @@ namespace WPF.ViewModels.Notes
             {
                 OnPropertyChanged(nameof(HasQuestions));
                 OnPropertyChanged(nameof(DistinctQuestions));
+                
+                StartNoteQuizCommand.RaiseCanExecuteChanged();
             };
 
             bool hasMarkdown = DetectMarkdownContent(note?.Content);
@@ -256,6 +266,10 @@ namespace WPF.ViewModels.Notes
             {
                 System.Diagnostics.Debug.WriteLine($"Hiba a kérdések betöltésekor: {ex.Message}");
                 ShowNotification("Error", $"❌ Hiba a kérdések betöltésekor: {ex.Message}", 5000);
+            }
+            finally
+            {
+                StartNoteQuizCommand.RaiseCanExecuteChanged();
             }
         }
 

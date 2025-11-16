@@ -324,7 +324,7 @@ namespace Data.Services
 
             return await _unitOfWork.Questions.GetFilteredAsync(
                 filter: q => q.SourceNoteId == noteId && q.SourceNote.UserId == userId,
-                includeProperties: "SourceNote"
+                includeProperties: "SourceNote,Answers"
             );
         }
 

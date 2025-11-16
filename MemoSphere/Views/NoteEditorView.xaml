@@ -368,8 +368,53 @@
                       FontWeight="SemiBold"/>
                             </StackPanel>
                         </Button>
-
-                        <!-- 4. Mentés gomb (MEGLÉVŐ) -->
+                        <!-- 4. Jegyzet kvíz gomb -->
+                        <Button Command="{Binding StartNoteQuizCommand}"
+                    Height="40"
+                    Padding="20,0"
+                    Margin="0,0,10,0"
+                    Background="#00BCD4" Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    ToolTip="Kvíz indítása csak ebből a jegyzetből">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" 
+                                            CornerRadius="6"
+                                            Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter HorizontalAlignment="Center" 
+                                                          VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#0097A7"/>
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Background" Value="#BDBDBD"/>
+                                            <Setter Property="Cursor" Value="Arrow"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="RocketLaunch" 
+                                             Width="18" 
+                                             Height="18" 
+                                             VerticalAlignment="Center" 
+                                             Margin="0,0,8,0"/>
+                                <TextBlock Text="🚀 Jegyzet Kvíz" 
+                               VerticalAlignment="Center"
+                               FontSize="14"
+                               FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+                        <!-- 5. Mentés gomb (MEGLÉVŐ) -->
                         <Button Command="{Binding SaveCommand}"
             Content="💾 Mentés"
             Height="40"

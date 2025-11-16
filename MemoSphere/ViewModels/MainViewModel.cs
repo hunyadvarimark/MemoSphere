@@ -24,6 +24,7 @@ namespace WPF.ViewModels
         private readonly IAuthService _authService;
         private readonly IDocumentImportService _documentImportService;
         public QuizViewModel QuizVM { get; }
+        public QuizTopicSelectionViewModel QuizSelectionVM { get; }
         public DashboardViewModel DashboardVM { get; }
         // List ViewModels
         public SubjectListViewModel SubjectsVM { get; }
@@ -112,6 +113,13 @@ namespace WPF.ViewModels
                 }
             }
         }
+
+        private bool _isQuizSelectionVisible;
+        public bool IsQuizSelectionVisible
+        {
+            get => _isQuizSelectionVisible;
+            set => SetProperty(ref _isQuizSelectionVisible, value);
+        }
         // Commands
         public ICommand UnselectNoteCommand { get; }
         public RelayCommand AddSubjectCommand { get; }
@@ -130,6 +138,7 @@ namespace WPF.ViewModels
             SubjectDetailViewModel subjectDetailVM,
             TopicDetailViewModel topicDetailVM,
             DashboardViewModel dashboardVM,
+            QuizTopicSelectionViewModel quizSelectionVM,
             HierarchyCoordinator hierarchyCoordinator,
             CrudOperationHandler crudHandler,
             INoteService noteService,
@@ -145,6 +154,10 @@ namespace WPF.ViewModels
             DashboardVM = dashboardVM ?? throw new ArgumentNullException(nameof(dashboardVM));
             SubjectDetailVM = subjectDetailVM ?? throw new ArgumentNullException(nameof(subjectDetailVM));
             TopicDetailVM = topicDetailVM ?? throw new ArgumentNullException(nameof(topicDetailVM));
+            QuizSelectionVM = quizSelectionVM ?? throw new ArgumentNullException(nameof(quizSelectionVM));
+            QuizSelectionVM.Initialize(this);
+            
+            
             _hierarchyCoordinator = hierarchyCoordinator ?? throw new ArgumentNullException(nameof(hierarchyCoordinator));
             _crudHandler = crudHandler ?? throw new ArgumentNullException(nameof(crudHandler));
             _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
@@ -167,10 +180,9 @@ namespace WPF.ViewModels
             AddNewNoteCommand = new RelayCommand(_ => CreateNewNote(), _ => TopicsVM.SelectedTopic != null);
             ToggleNoteListCommand = new RelayCommand(_ => IsNoteListVisible = !IsNoteListVisible);
             StartQuizCommand = new RelayCommand(
-                async _ => await StartQuizAsync(),
+                async _ => await OpenQuizSelectionModalAsync(),
                 _ => {
-                    var canExecute = TopicsVM.SelectedTopic != null && !IsQuizActive && HasEnoughQuestions;
-                    System.Diagnostics.Debug.WriteLine($"🎯 StartQuizCommand.CanExecute: {canExecute} (Topic: {TopicsVM.SelectedTopic != null}, QuizActive: {IsQuizActive}, EnoughQuestions: {HasEnoughQuestions})");
+                    var canExecute = SubjectsVM.SelectedSubject != null && !IsQuizActive;
                     return canExecute;
                 }
             );
@@ -211,10 +223,12 @@ namespace WPF.ViewModels
                 return;
             }
             var questionListVM = new QuestionListViewModel(_questionService);
-            var noteTab = new NoteTabViewModel(note, _noteService, questionListVM, _documentImportService);
+            var noteTab = new NoteTabViewModel(note, _noteService, questionListVM, _documentImportService, this);
             noteTab.CloseRequested += OnNoteTabCloseRequested;
             noteTab.NoteSaved += OnNoteTabSaved;
             noteTab.ActivateRequested += tab => ActiveNote = tab;
+            noteTab.NoteQuizRequested += async (noteId) => await StartNoteQuizAsync(noteId);
+
             OpenNotes.Add(noteTab);
             ActiveNote = noteTab;
             if (note.Id > 0)
@@ -263,41 +277,59 @@ namespace WPF.ViewModels
                 MessageBox.Show($"Hiba a mentés során: {ex.Message}", "Hiba");
             }
         }
-        private async Task StartQuizAsync()
+        private async Task OpenQuizSelectionModalAsync()
+        {
+            if (SubjectsVM.SelectedSubject == null)
+            {
+                MessageBox.Show("Válassz ki egy tantárgyat a listából.", "Nincs kiválasztva tantárgy", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                // Töltsük be a modalba az aktuális tárgy témaköreit
+                await QuizSelectionVM.LoadTopicsAsync(SubjectsVM.SelectedSubject.Id);
+
+                // Nyissuk meg a modalt
+                IsQuizSelectionVisible = true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Hiba a kvíz-választó betöltésekor: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        public async Task StartNoteQuizAsync(int noteId)
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("🚀 StartQuizAsync called");
-                if (TopicsVM?.SelectedTopic == null)
-                {
-                    MessageBox.Show("Válassz egy témakört!", "Figyelmeztetés",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
+                System.Diagnostics.Debug.WriteLine($"🚀 StartNoteQuizAsync called for NoteID: {noteId}");
+
                 QuizVM.ResetState();
                 System.Diagnostics.Debug.WriteLine("🔄 QuizVM state reset before loading");
-                var topicIds = new List<int> { TopicsVM.SelectedTopic.Id };
-                System.Diagnostics.Debug.WriteLine($"📚 Loading quiz for topic: {TopicsVM.SelectedTopic.Title} (ID: {TopicsVM.SelectedTopic.Id})");
-                await QuizVM.LoadQuizCommand.ExecuteAsync(topicIds);
+
+                await QuizVM.LoadQuizFromNoteCommand.ExecuteAsync(noteId);
+
                 if (QuizVM.QuizItems == null || !QuizVM.QuizItems.Any())
                 {
-                    MessageBox.Show("Nem sikerült betölteni a kvíz kérdéseket.", "Hiba",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    System.Diagnostics.Debug.WriteLine("⚠️ Nem sikerült kérdéseket betölteni a jegyzet-kvízhez.");
                     return;
                 }
-                System.Diagnostics.Debug.WriteLine($"✅ Quiz loaded with {QuizVM.QuizItems.Count} questions");
+
+                System.Diagnostics.Debug.WriteLine($"✅ Note Quiz loaded with {QuizVM.QuizItems.Count} questions");
+
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     var quizWindow = new QuizWindow(QuizVM);
                     quizWindow.ShowDialog();
                 });
+
                 IsQuizActive = false;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"❌ Error in StartQuizAsync: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Error in StartNoteQuizAsync: {ex.Message}");
                 MessageBox.Show(
-                    $"Hiba a kvíz indításakor:\n\n{ex.Message}\n\nStackTrace:\n{ex.StackTrace}",
+                    $"Hiba a jegyzet-kvíz indításakor:\n\n{ex.Message}",
                     "Hiba",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);

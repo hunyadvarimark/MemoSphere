@@ -79,7 +79,9 @@ namespace WPF.ViewModels.Quiz
 
         // --- Command-ok ---
         public AsyncCommand<List<int>> LoadQuizCommand { get; }
+        public AsyncCommand<int> LoadQuizFromNoteCommand { get; }
         public AsyncCommand<object> SubmitAnswerCommand { get; }
+
 
         public ICommand NavigateNextCommand { get; }
         public ICommand RestartQuizCommand { get; }
@@ -101,6 +103,7 @@ namespace WPF.ViewModels.Quiz
             NavigateNextCommand = new RelayCommand(NavigateNext, CanNavigateNext);
             RestartQuizCommand = new RelayCommand(RestartQuiz, _ => IsQuizFinished);
             CloseQuizCommand = new RelayCommand(_ => CloseQuiz());
+            LoadQuizFromNoteCommand = new AsyncCommand<int>(LoadQuizFromNoteAsync, CanLoadQuizFromNote);
 
             _secondsRemaining = _quizDurationInSeconds;
             OnPropertyChanged(nameof(RemainingTimeText));
@@ -168,8 +171,47 @@ namespace WPF.ViewModels.Quiz
                 IsQuizFinished = true;
             }
         }
+        private async Task LoadQuizFromNoteAsync(int noteId)
+        {
+            try
+            {
+                var questions = (await _questionService.GetQuestionsForNoteAsync(noteId)).ToList();
+
+                if (questions == null || !questions.Any())
+                {
+                    MessageBox.Show("Ehhez a jegyzethez még nem tartoznak kérdések.", "Nincs kérdés", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                QuizItems = new ObservableCollection<QuizItemViewModel>(
+                    questions.Select(q => new QuizItemViewModel(q)).Where(vm => vm != null)
+                );
+
+                _currentQuestionIndex = 0;
+                _secondsRemaining = _quizDurationInSeconds;
+                IsQuizFinished = false;
+                CorrectAnswers = 0;
+
+                _timer.Start();
+
+                OnPropertyChanged(nameof(CurrentItem));
+                OnPropertyChanged(nameof(StatusText));
+                OnPropertyChanged(nameof(RemainingTimeText));
+                OnPropertyChanged(nameof(TotalQuestions));
+                OnPropertyChanged(nameof(ResultText));
+
+                RaiseCommandsCanExecuteChanged();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Hiba a jegyzet-kvíz betöltésekor: {ex.Message}");
+                _timer.Stop();
+                IsQuizFinished = true;
+            }
+        }
 
         private bool CanLoadQuiz(List<int> topicIds) => !IsQuizFinished && _canStartQuiz;
+        private bool CanLoadQuizFromNote(int noteId) => noteId > 0 && !IsQuizFinished;
 
         private bool CanSubmitAnswer(object parameter) =>
             !IsQuizFinished &&

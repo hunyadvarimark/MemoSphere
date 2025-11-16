@@ -135,7 +135,7 @@ namespace MemoSphere.WPF
                     services.AddSingleton<QuestionDetailViewModel>();
                     services.AddSingleton<QuizViewModel>();
                     services.AddSingleton<DashboardViewModel>();
-
+                    services.AddSingleton<QuizTopicSelectionViewModel>();
                     // Coordinators és Handlers
                     services.AddSingleton<HierarchyCoordinator>(provider =>
                     {
