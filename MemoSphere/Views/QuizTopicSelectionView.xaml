@@ -8,171 +8,326 @@
              xmlns:converters="clr-namespace:WPF.Utilities"
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type=quizVM:QuizTopicSelectionViewModel, IsDesignTimeCreatable=False}"
-             d:DesignHeight="500" d:DesignWidth="600">
+             d:DesignHeight="600" d:DesignWidth="900"
+             Background="#F8FAFC">
 
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisConverter" />
+
+        <Style x:Key="TopicCard" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="0,0,16,16"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#C5CAE9"/>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#6366F1" BlurRadius="20" ShadowDepth="0" Opacity="0.2"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="BorderBrush" Value="#6366F1"/>
+                    <Setter Property="Background" Value="#F5F7FF"/>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#6366F1" BlurRadius="25" ShadowDepth="0" Opacity="0.3"/>
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="QuickActionButton" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="12"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#6366F1"/>
+                    <Setter Property="Background" Value="#F5F7FF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
 
-    <Grid>
+    <Grid Margin="40,32">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,24">
-            <materialDesign:PackIcon Kind="PlaylistCheck" 
-                                     Width="28" 
-                                     Height="28" 
-                                     Foreground="#FF5722" 
-                                     VerticalAlignment="Center"/>
-            <TextBlock Text="Kvíz Testreszabása" 
-                       FontSize="20" 
-                       FontWeight="Bold" 
-                       Foreground="#2C3E50" 
-                       VerticalAlignment="Center" 
-                       Margin="12,0,0,0"/>
-        </StackPanel>
-
-        <Grid Grid.Row="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <TextBlock Grid.Row="0"
-                       Text="Válassz egy vagy több témakört a kvízhez:" 
-                       FontSize="13" 
-                       FontWeight="SemiBold" 
-                       Foreground="#7E8BA3" 
-                       Margin="0,0,0,12"/>
-
-            <Border Grid.Row="1"
-                    Background="#F8F9FA" 
-                    BorderBrush="#E0E0E0" 
-                    BorderThickness="1" 
-                    CornerRadius="8">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="5">
-                    <ItemsControl ItemsSource="{Binding SelectableTopics}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Padding="10" Margin="5" CornerRadius="6">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Setter Property="Background" Value="Transparent"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                    <Setter Property="Background" Value="#E8EAF6"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-
-                                    <CheckBox IsChecked="{Binding IsSelected}"
-                                              Cursor="Hand">
-                                        <StackPanel Orientation="Horizontal">
-                                            <materialDesign:PackIcon Kind="Star" 
-                                                                     Foreground="#FFC107" 
-                                                                     VerticalAlignment="Center" 
-                                                                     Margin="0,0,8,0"
-                                                                     Visibility="{Binding IsActive, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                            <TextBlock Text="{Binding Title}" 
-                                                       FontSize="14"
-                                                       FontWeight="SemiBold"
-                                                       VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </CheckBox>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </Border>
+        <Grid Grid.Row="0" Margin="0,0,0,32">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <Border Background="#FEF3C7" CornerRadius="10" Padding="8" Margin="0,0,12,0">
+                        <materialDesign:PackIcon Kind="Brain" Width="32" Height="32" Foreground="#F59E0B"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Kvíz Testreszabása" FontSize="28" FontWeight="Bold" Foreground="#1E293B"/>
+                        <TextBlock Text="Válaszd ki a gyakorolni kívánt témaköröket" FontSize="14" Foreground="#64748B" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Command="{Binding CancelCommand}"
+                    Width="40" Height="40"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    VerticalAlignment="Top">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="10">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#FEE2E2"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+                <materialDesign:PackIcon Kind="Close" Width="24" Height="24" Foreground="#94A3B8"/>
+            </Button>
         </Grid>
 
-        <StackPanel Grid.Row="2" 
-                    Orientation="Horizontal" 
-                    HorizontalAlignment="Right"
-                    Margin="0,24,0,0">
-
-            <Button Command="{Binding CancelCommand}" 
-                    Height="40"
-                    Padding="20,0"
-                    Margin="0,0,12,0"
-                    Background="Transparent"
-                    BorderBrush="#E0E0E0"
-                    BorderThickness="1"
-                    Cursor="Hand">
-                <Button.Style>
-                    <Style TargetType="Button">
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" 
-                                            BorderBrush="{TemplateBinding BorderBrush}"
-                                            BorderThickness="{TemplateBinding BorderThickness}"
-                                            CornerRadius="6">
-                                        <ContentPresenter HorizontalAlignment="Center" 
-                                                          VerticalAlignment="Center"/>
-                                    </Border>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                        <Style.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#F5F5F5"/>
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-                <TextBlock Text="Mégsem" 
-                           FontSize="14"
-                           FontWeight="SemiBold"
-                           Foreground="#666"/>
-            </Button>
-
-            <Button Command="{Binding StartSelectedQuizCommand}"
-                    Height="40"
-                    Padding="24,0"
-                    Background="#FF5722" Foreground="White"
-                    BorderThickness="0"
-                    Cursor="Hand">
-                <Button.Style>
-                    <Style TargetType="Button">
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" 
-                                            CornerRadius="6">
-                                        <ContentPresenter HorizontalAlignment="Center" 
-                                                          VerticalAlignment="Center"/>
-                                    </Border>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                        <Style.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#E64A19"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#BDBDBD"/>
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-                <StackPanel Orientation="Horizontal">
-                    <materialDesign:PackIcon Kind="Play" 
-                                             Width="16" 
-                                             Height="16" 
-                                             VerticalAlignment="Center" 
-                                             Margin="0,0,8,0"/>
-                    <TextBlock Text="Kvíz Indítása" 
-                               VerticalAlignment="Center" 
-                               FontSize="14"
-                               FontWeight="SemiBold"/>
+        <Border Grid.Row="1" 
+                Background="White"
+                BorderBrush="#E2E8F0"
+                BorderThickness="1"
+                CornerRadius="16"
+                Padding="20"
+                Margin="0,0,0,24">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="Gyors műveletek" FontSize="14" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,0,4"/>
+                    <TextBlock FontSize="13" Foreground="#94A3B8">
+                        <Run Text="💡"/>
+                        <Run Text="Tipp: Válassz több témakört a változatosabb gyakorlásért"/>
+                    </TextBlock>
                 </StackPanel>
-            </Button>
-        </StackPanel>
+
+                <Button Grid.Column="1"
+                        Style="{StaticResource QuickActionButton}"
+                        Command="{Binding SelectAllCommand}"
+                        Margin="0,0,12,0">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="CheckboxMultipleMarked" Width="20" Height="20" Foreground="#6366F1" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="Összes kijelölése" FontSize="14" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="2"
+                        Style="{StaticResource QuickActionButton}"
+                        Command="{Binding DeselectAllCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="CloseBoxMultiple" Width="20" Height="20" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="Kijelölés törlése" FontSize="14" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="2" 
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding SelectableTopics}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource TopicCard}"
+                                Width="260"
+                                Height="180">
+                            <Border.InputBindings>
+                                <MouseBinding MouseAction="LeftClick"
+                                              Command="{Binding ToggleSelectionCommand}"/>
+                            </Border.InputBindings>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0" Margin="0,0,0,12">
+                                    <Border Background="#F0F4FF" CornerRadius="12" Width="48" Height="48" HorizontalAlignment="Left">
+                                        <TextBlock Text="📚" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <Border Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8" Padding="8,4" HorizontalAlignment="Right"
+                                            Visibility="{Binding IsActive, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="Star" Width="14" Height="14" Foreground="#F59E0B" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                            <TextBlock Text="Aktív" FontSize="11" FontWeight="Bold" Foreground="#F59E0B" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" 
+                                               FontSize="16" FontWeight="Bold" Foreground="#1E293B"
+                                               TextWrapping="Wrap" MaxHeight="48" TextTrimming="CharacterEllipsis"
+                                               Margin="0,0,0,8"/>
+
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <materialDesign:PackIcon Grid.Column="0" Kind="HelpCircle" Width="16" Height="16" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding QuestionCount, StringFormat={}{0} kérdés}" FontSize="13" Foreground="#64748B" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <materialDesign:PackIcon Grid.Column="0" Kind="TrendingUp" Width="16" Height="16" Foreground="#10B981" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding MasteryPercentage, StringFormat=Elsajátítva: {0:0}%}" FontSize="13" Foreground="#64748B" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <Border Grid.Row="2"
+                                        Background="#6366F1"
+                                        CornerRadius="8"
+                                        Padding="0,8"
+                                        Visibility="{Binding IsSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <materialDesign:PackIcon Kind="Check" Width="18" Height="18" Foreground="White" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Kiválasztva" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="2"
+                                        BorderBrush="#E2E8F0"
+                                        BorderThickness="2"
+                                        Background="Transparent"
+                                        CornerRadius="8"
+                                        Padding="0,8"
+                                        Visibility="{Binding IsSelected, Converter={StaticResource InvertedBoolToVisConverter}}">
+                                    <TextBlock Text="Kattints a kiválasztáshoz" 
+                                               FontSize="13" FontWeight="SemiBold" Foreground="#94A3B8"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <Border Grid.Row="3"
+                Background="White"
+                BorderBrush="#E2E8F0"
+                BorderThickness="1"
+                CornerRadius="16"
+                Padding="24,20"
+                Margin="0,24,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="#1E293B">
+                        <Run Text="{Binding SelectedCount, Mode=OneWay}"/>
+                        <Run Text="témakör kiválasztva"/>
+                    </TextBlock>
+                    <TextBlock Text="Legalább 1 témakör szükséges a kvíz indításához" 
+                               FontSize="12" 
+                               Foreground="#94A3B8"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Command="{Binding StartSelectedQuizCommand}"
+                        Height="52"
+                        Padding="32,0"
+                        Background="#EF4444"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        FontWeight="Bold"
+                        FontSize="15">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                                CornerRadius="12"
+                                                Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" 
+                                                              VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#DC2626"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Background" Value="#CBD5E1"/>
+                                    <Setter Property="Cursor" Value="Arrow"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="PlayCircle" 
+                                                 Width="24" 
+                                                 Height="24" 
+                                                 VerticalAlignment="Center" 
+                                                 Margin="0,0,10,0"/>
+                        <TextBlock Text="Kvíz Indítása" 
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

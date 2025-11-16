@@ -14,19 +14,24 @@ namespace WPF.ViewModels.Subjects
 
         public RelayCommand EditSubjectCommand { get; }
         public RelayCommand DeleteSubjectCommand { get; }
+        public RelayCommand SelectSubjectCommand { get; }
 
         public event Action<Subject> EditSubjectRequested;
         public event Action<int> DeleteSubjectRequested;
         public event Action<SubjectViewModel> SubjectSelected;
+
 
         public SubjectViewModel SelectedSubject
         {
             get => _selectedSubject;
             set
             {
-                _selectedSubject = value;
-                OnPropertyChanged();
-                SubjectSelected?.Invoke(value);
+                if (_selectedSubject != value)
+                {
+                    _selectedSubject = value;
+                    OnPropertyChanged();
+                    SubjectSelected?.Invoke(value);
+                }
             }
         }
 
@@ -39,6 +44,15 @@ namespace WPF.ViewModels.Subjects
             DeleteSubjectCommand = new RelayCommand(
                 param => { if (param is SubjectViewModel subjectVM && MessageBox.Show($"Biztosan törölni szeretnéd '{subjectVM.Title}'-t?", "Törlés", MessageBoxButton.YesNo) == MessageBoxResult.Yes) DeleteSubjectRequested?.Invoke(subjectVM.Id); },
                 param => param is SubjectViewModel);
+            SelectSubjectCommand = new RelayCommand(
+                param =>
+                {
+                    if (param is SubjectViewModel vm)
+                    {
+                        SelectedSubject = vm;
+                    }
+                }
+            );
         }
 
         public async Task LoadSubjectsAsync()

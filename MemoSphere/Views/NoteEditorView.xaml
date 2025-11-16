@@ -9,10 +9,68 @@
 
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <!-- Floating Action Button Style -->
+        <Style x:Key="FloatingActionButton" TargetType="Button">
+            <Setter Property="Width" Value="56"/>
+            <Setter Property="Height" Value="56"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="28">
+                            <Border.Effect>
+                                <DropShadowEffect Color="Black" 
+                                                BlurRadius="15" 
+                                                ShadowDepth="3" 
+                                                Opacity="0.25"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="1.05" ScaleY="1.05"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Icon Button Style -->
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F1F5F9"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
-        <!-- ✅ Ha nincs jegyzet betöltve, üres állapot üzenet -->
+        <!-- Üres állapot -->
         <Border>
             <Border.Style>
                 <Style TargetType="Border">
@@ -28,22 +86,22 @@
                 <materialDesign:PackIcon Kind="NoteOutline" 
                                         Width="80" 
                                         Height="80" 
-                                        Foreground="#BDBDBD"
+                                        Foreground="#CBD5E1"
                                         Margin="0,0,0,20"/>
                 <TextBlock Text="Nincs megnyitott jegyzet" 
                           FontSize="20" 
                           FontWeight="SemiBold"
-                          Foreground="#9E9E9E"
+                          Foreground="#64748B"
                           HorizontalAlignment="Center"
                           Margin="0,0,0,8"/>
                 <TextBlock Text="Válassz egy jegyzetet a listából vagy hozz létre újat" 
                           FontSize="14" 
-                          Foreground="#BDBDBD"
+                          Foreground="#94A3B8"
                           HorizontalAlignment="Center"/>
             </StackPanel>
         </Border>
 
-        <!-- ✅ Jegyzet szerkesztő - csak akkor látható, ha van betöltött jegyzet -->
+        <!-- Jegyzet szerkesztő -->
         <Grid>
             <Grid.Style>
                 <Style TargetType="Grid">
@@ -60,28 +118,79 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Cím szerkesztő -->
+            <!-- Header: Cím + Autosave + PDF Import -->
             <Border Grid.Row="0" 
-                    BorderBrush="#E0E0E0" 
+                    BorderBrush="#E2E8F0" 
                     BorderThickness="0,0,0,1" 
-                    Padding="20,15">
+                    Padding="24,16"
+                    Background="#FAFBFC">
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBox Grid.Column="0"
+                    <!-- PDF Import gomb - BAL OLDAL (csak üres jegyzetnél) -->
+                    <Button Grid.Column="0"
+                            Command="{Binding ImportPdfCommand}"
+                            ToolTip="PDF importálása"
+                            Width="44"
+                            Height="44"
+                            Margin="0,0,16,0"
+                            Background="#FF6F00"
+                            BorderThickness="0"
+                            Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" 
+                                                   CornerRadius="10">
+                                                <ContentPresenter HorizontalAlignment="Center" 
+                                                                VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#F57C00"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Background" Value="#CBD5E1"/>
+                                        <Setter Property="Cursor" Value="Arrow"/>
+                                    </Trigger>
+                                    <DataTrigger Binding="{Binding IsImporting}" Value="True">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                    </DataTrigger>
+                                    <!-- Elrejtjük ha már van tartalom -->
+                                    <DataTrigger Binding="{Binding Content.Length, Converter={StaticResource BooleanToVisibilityConverter}}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <materialDesign:PackIcon Kind="FilePdfBox" 
+                                                Width="22" 
+                                                Height="22" 
+                                                Foreground="White"/>
+                    </Button>
+
+                    <!-- Cím - KÖZÉPEN -->
+                    <TextBox Grid.Column="1"
                              Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
-                             FontSize="22"
+                             FontSize="20"
                              FontWeight="SemiBold"
                              BorderThickness="0"
                              Background="Transparent"
                              VerticalAlignment="Center"
-                             Foreground="#2C3E50">
+                             Foreground="#1E293B"
+                             Padding="8,0">
                         <TextBox.Style>
                             <Style TargetType="TextBox">
                                 <Style.Triggers>
@@ -91,8 +200,9 @@
                                                 <VisualBrush Stretch="None" AlignmentX="Left">
                                                     <VisualBrush.Visual>
                                                         <TextBlock Text="📝 Jegyzet címe..." 
-                                                                  Foreground="#BDBDBD" 
-                                                                  FontSize="22"/>
+                                                                  Foreground="#94A3B8" 
+                                                                  FontSize="20"
+                                                                  Padding="8,0"/>
                                                     </VisualBrush.Visual>
                                                 </VisualBrush>
                                             </Setter.Value>
@@ -103,158 +213,38 @@
                         </TextBox.Style>
                     </TextBox>
 
-                    <!-- Autosave indicator -->
-                    <StackPanel Grid.Column="1" 
+                    <!-- Autosave + Toggle Edit - JOBB OLDAL -->
+                    <StackPanel Grid.Column="2" 
                                Orientation="Horizontal" 
                                VerticalAlignment="Center">
-                        <materialDesign:PackIcon Kind="CloudCheck" 
-                                                Width="18" 
-                                                Height="18" 
-                                                Foreground="#4CAF50"
-                                                Margin="0,0,5,0"/>
-                        <TextBlock Text="Autosaved" 
-                                  FontSize="12" 
-                                  Foreground="#4CAF50"
-                                  VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <!-- Tartalom szerkesztő -->
-            <Border Grid.Row="1" Padding="20">
-                <Grid>
-                    <!-- SZERKESZTHETŐ MÓD: TextBox (kézzel írt jegyzetek) -->
-                    <TextBox Text="{Binding Content, UpdateSourceTrigger=PropertyChanged}"
-                 AcceptsReturn="True"
-                 TextWrapping="Wrap"
-                 VerticalScrollBarVisibility="Auto"
-                 BorderThickness="0"
-                 Background="Transparent"
-                 FontSize="15"
-                 Foreground="#2C3E50"
-                 Padding="2">
-                        <TextBox.Style>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Visibility" Value="Visible"/>
-                                <Style.Triggers>
-                                    <!-- Ha Markdown/LaTeX content, rejtjük a TextBox-ot -->
-                                    <DataTrigger Binding="{Binding IsMarkdownContent}" Value="True">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                    <Trigger Property="Text" Value="">
-                                        <Setter Property="Background">
-                                            <Setter.Value>
-                                                <VisualBrush Stretch="None" AlignmentX="Left" AlignmentY="Top">
-                                                    <VisualBrush.Visual>
-                                                        <TextBlock Text="Kezdj el írni..." 
-                                                      Foreground="#BDBDBD" 
-                                                      FontSize="15"
-                                                      Margin="2,0,0,0"/>
-                                                    </VisualBrush.Visual>
-                                                </VisualBrush>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBox.Style>
-                    </TextBox>
-
-                    <!-- OLVASÁSI MÓD: WebView2 (PDF import, Markdown/LaTeX) -->
-                    <Border BorderThickness="0">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <MultiDataTrigger>
-                                        <MultiDataTrigger.Conditions>
-                                            <Condition Binding="{Binding IsMarkdownContent}" Value="True"/>
-                                            <Condition Binding="{Binding DataContext.IsDialogOpen, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
-                                        </MultiDataTrigger.Conditions>
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </MultiDataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-
-                        <wv2:WebView2 x:Name="NoteContentWebView"
-                  utilities:WebViewHelper.HtmlSource="{Binding Content}"/>
-                    </Border>
-                </Grid>
-            </Border>
-
-            <!-- Action buttons -->
-            <Border Grid.Row="2" 
-        Background="#F8F9FA" 
-        BorderBrush="#E0E0E0" 
-        BorderThickness="0,1,0,0"
-        Padding="20,15">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <!-- ÚJ SOR a loading indicator-nak -->
-                    </Grid.RowDefinitions>
-
-                    <!-- Gombok -->
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <!-- 1. PDF Import gomb (MEGLÉVŐ) -->
-                        <Button Command="{Binding ImportPdfCommand}"
-            Height="40"
-            Padding="20,0"
-            Margin="0,0,10,0"
-            Background="#FF6F00"
-            Foreground="White"
-            BorderThickness="0"
-            Cursor="Hand">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" 
-                                   CornerRadius="6"
-                                   Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter HorizontalAlignment="Center" 
-                                                VerticalAlignment="Center"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#F57C00"/>
-                                        </Trigger>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter Property="Background" Value="#BDBDBD"/>
-                                            <Setter Property="Cursor" Value="Arrow"/>
-                                        </Trigger>
-                                        <DataTrigger Binding="{Binding IsImporting}" Value="True">
-                                            <Setter Property="IsEnabled" Value="False"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
+                        <!-- Autosave indicator -->
+                        <Border Background="#ECFDF5"
+                               BorderBrush="#10B981"
+                               BorderThickness="1"
+                               CornerRadius="8"
+                               Padding="10,6"
+                               Margin="0,0,12,0">
                             <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="FilePdfBox" 
-                                    Width="18" 
-                                    Height="18" 
-                                    VerticalAlignment="Center" 
-                                    Margin="0,0,8,0"/>
-                                <TextBlock Text="📄 PDF Import" 
-                      VerticalAlignment="Center"
-                      FontSize="14"
-                      FontWeight="SemiBold"/>
+                                <materialDesign:PackIcon Kind="CloudCheck" 
+                                                        Width="16" 
+                                                        Height="16" 
+                                                        Foreground="#10B981"
+                                                        VerticalAlignment="Center"
+                                                        Margin="0,0,6,0"/>
+                                <TextBlock Text="Mentve" 
+                                          FontSize="12" 
+                                          FontWeight="SemiBold"
+                                          Foreground="#10B981"
+                                          VerticalAlignment="Center"/>
                             </StackPanel>
-                        </Button>
+                        </Border>
 
-                        <!-- 2. ✅ ÚJ: Toggle Edit Mode gomb -->
+                        <!-- Toggle Edit Mode gomb -->
                         <Button Command="{Binding ToggleEditModeCommand}"
-            Height="40"
-            Padding="20,0"
-            Margin="0,0,10,0"
-            BorderThickness="0"
-            Cursor="Hand">
+                                Width="44"
+                                Height="44"
+                                BorderThickness="0"
+                                Cursor="Hand">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Background" Value="#4CAF50"/>
@@ -262,10 +252,9 @@
                                         <Setter.Value>
                                             <ControlTemplate TargetType="Button">
                                                 <Border Background="{TemplateBinding Background}" 
-                                   CornerRadius="6"
-                                   Padding="{TemplateBinding Padding}">
+                                                       CornerRadius="10">
                                                     <ContentPresenter HorizontalAlignment="Center" 
-                                                VerticalAlignment="Center"/>
+                                                                    VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
                                         </Setter.Value>
@@ -274,189 +263,137 @@
                                         <Trigger Property="IsMouseOver" Value="True">
                                             <Setter Property="Background" Value="#388E3C"/>
                                         </Trigger>
-                                        <!-- Ha szerkesztési módban vagyunk (NOT markdown), más szín -->
                                         <DataTrigger Binding="{Binding IsMarkdownContent}" Value="False">
-                                            <Setter Property="Background" Value="#2196F3"/>
+                                            <Setter Property="Background" Value="#6366F1"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Button.Style>
-
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Width="18" 
-                                    Height="18" 
-                                    VerticalAlignment="Center" 
-                                    Margin="0,0,8,0">
-                                    <materialDesign:PackIcon.Style>
-                                        <Style TargetType="materialDesign:PackIcon">
-                                            <Setter Property="Kind" Value="Eye"/>
-                                            <Setter Property="Foreground" Value="White"/>
-                                            <Style.Triggers>
-                                                <!-- Ha szerkesztési módban (NOT markdown), pencil ikon -->
-                                                <DataTrigger Binding="{Binding IsMarkdownContent}" Value="False">
-                                                    <Setter Property="Kind" Value="Pencil"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </materialDesign:PackIcon.Style>
-                                </materialDesign:PackIcon>
-
-                                <TextBlock VerticalAlignment="Center"
-                      FontSize="14"
-                      FontWeight="SemiBold"
-                      Foreground="White">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="👁️ Előnézet"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsMarkdownContent}" Value="False">
-                                                    <Setter Property="Text" Value="✏️ Szerkesztés"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </StackPanel>
-                        </Button>
-
-                        <!-- 3. AI Kérdésgenerálás gomb (MEGLÉVŐ) -->
-                        <Button Command="{Binding GenerateQuestionsCommand}"
-            Height="40"
-            Padding="20,0"
-            Margin="0,0,10,0"
-            Background="#9C27B0"
-            Foreground="White"
-            BorderThickness="0"
-            Cursor="Hand">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" 
-                                   CornerRadius="6"
-                                   Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter HorizontalAlignment="Center" 
-                                                VerticalAlignment="Center"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#7B1FA2"/>
-                                        </Trigger>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter Property="Background" Value="#BDBDBD"/>
-                                            <Setter Property="Cursor" Value="Arrow"/>
-                                        </Trigger>
-                                        <DataTrigger Binding="{Binding IsGenerating}" Value="True">
-                                            <Setter Property="IsEnabled" Value="False"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="AutoFix" 
-                                    Width="18" 
-                                    Height="18" 
-                                    VerticalAlignment="Center" 
-                                    Margin="0,0,8,0"/>
-                                <TextBlock Text="🤖 AI Kérdésgenerálás" 
-                      VerticalAlignment="Center"
-                      FontSize="14"
-                      FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Button>
-                        <!-- 4. Jegyzet kvíz gomb -->
-                        <Button Command="{Binding StartNoteQuizCommand}"
-                    Height="40"
-                    Padding="20,0"
-                    Margin="0,0,10,0"
-                    Background="#00BCD4" Foreground="White"
-                    BorderThickness="0"
-                    Cursor="Hand"
-                    ToolTip="Kvíz indítása csak ebből a jegyzetből">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" 
-                                            CornerRadius="6"
-                                            Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter HorizontalAlignment="Center" 
-                                                          VerticalAlignment="Center"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#0097A7"/>
-                                        </Trigger>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter Property="Background" Value="#BDBDBD"/>
-                                            <Setter Property="Cursor" Value="Arrow"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="RocketLaunch" 
-                                             Width="18" 
-                                             Height="18" 
-                                             VerticalAlignment="Center" 
-                                             Margin="0,0,8,0"/>
-                                <TextBlock Text="🚀 Jegyzet Kvíz" 
-                               VerticalAlignment="Center"
-                               FontSize="14"
-                               FontWeight="SemiBold"/>
-                            </StackPanel>
-                        </Button>
-                        <!-- 5. Mentés gomb (MEGLÉVŐ) -->
-                        <Button Command="{Binding SaveCommand}"
-            Content="💾 Mentés"
-            Height="40"
-            Padding="25,0"
-            Background="#2196F3"
-            Foreground="White"
-            FontSize="14"
-            FontWeight="SemiBold"
-            BorderThickness="0"
-            Cursor="Hand">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" 
-                                   CornerRadius="6"
-                                   Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter HorizontalAlignment="Center" 
-                                                VerticalAlignment="Center"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#1976D2"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
+                            <materialDesign:PackIcon Width="20" 
+                                                    Height="20"
+                                                    Foreground="White">
+                                <materialDesign:PackIcon.Style>
+                                    <Style TargetType="materialDesign:PackIcon">
+                                        <Setter Property="Kind" Value="Eye"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsMarkdownContent}" Value="False">
+                                                <Setter Property="Kind" Value="Pencil"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </materialDesign:PackIcon.Style>
+                            </materialDesign:PackIcon>
                         </Button>
                     </StackPanel>
+                </Grid>
+            </Border>
 
-                    <StackPanel Grid.Row="1">
-                        <!-- AI Kérdésgenerálás Loading Indicator -->
-                        <Border Background="#E8EAF6" 
-                    Padding="15" 
-                    CornerRadius="6"
-                    Margin="0,15,0,0"
-                    BorderBrush="#5C6BC0"
-                    BorderThickness="1">
+            <!-- Tartalom szerkesztő -->
+            <Grid Grid.Row="1">
+                <Border Padding="24">
+                    <Grid>
+                        <!-- SZERKESZTHETŐ MÓD: TextBox -->
+                        <TextBox Text="{Binding Content, UpdateSourceTrigger=PropertyChanged}"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 FontSize="15"
+                                 Foreground="#1E293B"
+                                 Padding="2">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMarkdownContent}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                        <Trigger Property="Text" Value="">
+                                            <Setter Property="Background">
+                                                <Setter.Value>
+                                                    <VisualBrush Stretch="None" AlignmentX="Left" AlignmentY="Top">
+                                                        <VisualBrush.Visual>
+                                                            <TextBlock Text="Kezdj el írni..." 
+                                                                      Foreground="#94A3B8" 
+                                                                      FontSize="15"
+                                                                      Margin="2,0,0,0"/>
+                                                        </VisualBrush.Visual>
+                                                    </VisualBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+
+                        <!-- OLVASÁSI MÓD: WebView2 -->
+                        <Border BorderThickness="0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding IsMarkdownContent}" Value="True"/>
+                                                <Condition Binding="{Binding DataContext.IsDialogOpen, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <wv2:WebView2 x:Name="NoteContentWebView"
+                                          utilities:WebViewHelper.HtmlSource="{Binding Content}"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- FLOATING ACTION BUTTON - JOBB ALSÓ SAROK -->
+                <StackPanel VerticalAlignment="Bottom" 
+                           HorizontalAlignment="Right"
+                           Margin="0,0,24,24">
+
+                    <!-- Jegyzet Kvíz FAB -->
+                    <Button Command="{Binding StartNoteQuizCommand}"
+        Background="#00BCD4"
+        ToolTip="Kvíz indítása ebből a jegyzetből">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource FloatingActionButton}">
+                                <Setter Property="Background" Value="#00BCD4"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#0097A7"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Background" Value="#CBD5E1"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <materialDesign:PackIcon Kind="RocketLaunch" 
+                            Width="28" 
+                            Height="28" 
+                            Foreground="White"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Loading Indicators + Generált kérdések -->
+            <Border Grid.Row="2"
+                    BorderBrush="#E2E8F0"
+                    BorderThickness="0,1,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                             MaxHeight="350">
+                    <StackPanel>
+                        <!-- AI Kérdésgenerálás Loading -->
+                        <Border Background="#F3E5F5" 
+                                Padding="20" 
+                                Margin="20,20,20,0"
+                                BorderBrush="#9C27B0"
+                                BorderThickness="2"
+                                CornerRadius="12">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -467,22 +404,20 @@
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-
                                 <materialDesign:PackIcon Grid.Column="0"
-                                            Kind="Cog" 
-                                            Width="24" 
-                                            Height="24" 
-                                            Foreground="#3F51B5"
-                                            VerticalAlignment="Center"
-                                            Margin="0,0,12,0">
+                                                        Kind="Cog" 
+                                                        Width="28" 
+                                                        Height="28" 
+                                                        Foreground="#9C27B0"
+                                                        VerticalAlignment="Center"
+                                                        Margin="0,0,16,0">
                                     <materialDesign:PackIcon.RenderTransform>
-                                        <RotateTransform CenterX="12" CenterY="12"/>
+                                        <RotateTransform CenterX="14" CenterY="14"/>
                                     </materialDesign:PackIcon.RenderTransform>
                                     <materialDesign:PackIcon.Style>
                                         <Style TargetType="materialDesign:PackIcon">
@@ -492,9 +427,9 @@
                                                         <BeginStoryboard>
                                                             <Storyboard RepeatBehavior="Forever">
                                                                 <DoubleAnimation Storyboard.TargetProperty="RenderTransform.Angle"
-                                                                   From="0"
-                                                                   To="360"
-                                                                   Duration="0:0:2"/>
+                                                                               From="0"
+                                                                               To="360"
+                                                                               Duration="0:0:2"/>
                                                             </Storyboard>
                                                         </BeginStoryboard>
                                                     </DataTrigger.EnterActions>
@@ -503,30 +438,29 @@
                                         </Style>
                                     </materialDesign:PackIcon.Style>
                                 </materialDesign:PackIcon>
-
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding GenerationStatus}" 
-                                   FontSize="14"
-                                   FontWeight="SemiBold"
-                                   Foreground="#3F51B5"
-                                   TextWrapping="Wrap"
-                                   Margin="0,0,0,8"/>
-
+                                              FontSize="15"
+                                              FontWeight="SemiBold"
+                                              Foreground="#6A1B9A"
+                                              TextWrapping="Wrap"
+                                              Margin="0,0,0,10"/>
                                     <ProgressBar IsIndeterminate="True" 
-                                     Height="6" 
-                                     Foreground="#5C6BC0"
-                                     Background="#C5CAE9"/>
+                                                Height="6" 
+                                                Foreground="#9C27B0"
+                                                Background="#E1BEE7"
+                                                BorderThickness="0"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
 
-                        <!-- PDF Import Loading Indicator -->
+                        <!-- PDF Import Loading -->
                         <Border Background="#FFF3E0" 
-                    Padding="15" 
-                    CornerRadius="6"
-                    Margin="0,15,0,0"
-                    BorderBrush="#FF6F00"
-                    BorderThickness="1">
+                                Padding="20" 
+                                Margin="20,20,20,0"
+                                BorderBrush="#FF6F00"
+                                BorderThickness="2"
+                                CornerRadius="12">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -537,132 +471,177 @@
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-
                                 <materialDesign:PackIcon Grid.Column="0"
-                                            Kind="FilePdfBox" 
-                                            Width="24" 
-                                            Height="24" 
-                                            Foreground="#FF6F00"
-                                            VerticalAlignment="Center"
-                                            Margin="0,0,12,0"/>
-
+                                                        Kind="FilePdfBox" 
+                                                        Width="28" 
+                                                        Height="28" 
+                                                        Foreground="#FF6F00"
+                                                        VerticalAlignment="Center"
+                                                        Margin="0,0,16,0"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding ImportStatus}" 
-                                   FontSize="14"
-                                   FontWeight="SemiBold"
-                                   Foreground="#E65100"
-                                   TextWrapping="Wrap"
-                                   Margin="0,0,0,8"/>
-
+                                              FontSize="15"
+                                              FontWeight="SemiBold"
+                                              Foreground="#E65100"
+                                              TextWrapping="Wrap"
+                                              Margin="0,0,0,10"/>
                                     <ProgressBar IsIndeterminate="True" 
-                                     Height="6" 
-                                     Foreground="#FF6F00"
-                                     Background="#FFE0B2"/>
+                                                Height="6" 
+                                                Foreground="#FF6F00"
+                                                Background="#FFE0B2"
+                                                BorderThickness="0"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
-                    </StackPanel>
-                </Grid>
-            </Border>
 
-            <!-- Generált kérdések -->
-            <Border Grid.Row="3" 
-                    BorderBrush="#E0E0E0" 
-                    BorderThickness="0,1,0,0"
-                    MaxHeight="300"
-                    Visibility="{Binding HasQuestions, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <Grid Margin="20">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
-                            <materialDesign:PackIcon Kind="HelpCircle" 
-                                                    Width="22" 
-                                                    Height="22" 
-                                                    Foreground="#FF5722" 
-                                                    VerticalAlignment="Center"/>
-                            <TextBlock Text="Generált Kérdések" 
-                                      FontSize="17" 
-                                      FontWeight="Bold" 
-                                      Foreground="#2C3E50" 
-                                      VerticalAlignment="Center" 
-                                      Margin="10,0,0,0"/>
-                            <TextBlock Text="{Binding DistinctQuestions.Count, StringFormat='({0})'}" 
-                                      FontSize="14" 
-                                      Foreground="#7E8BA3" 
-                                      VerticalAlignment="Center" 
-                                      Margin="5,0,0,0"/>
-                        </StackPanel>
-
-                        <ItemsControl Grid.Row="1" ItemsSource="{Binding DistinctQuestions}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="#F8F9FA" 
-                                           BorderBrush="#E0E0E0" 
-                                           BorderThickness="1" 
-                                           CornerRadius="8" 
-                                           Padding="16" 
-                                           Margin="0,0,0,12">
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Text}" 
-                                                      FontWeight="SemiBold" 
-                                                      FontSize="14" 
-                                                      Foreground="#2C3E50" 
-                                                      TextWrapping="Wrap" 
-                                                      Margin="0,0,0,12"/>
-
-                                            <!-- Answers list -->
-                                            <ItemsControl ItemsSource="{Binding Answers}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <StackPanel Orientation="Horizontal" Margin="0,4">
-                                                            <Ellipse Width="6" 
-                                                                    Height="6" 
-                                                                    Margin="0,0,8,0" 
-                                                                    VerticalAlignment="Center">
-                                                                <Ellipse.Style>
-                                                                    <Style TargetType="Ellipse">
-                                                                        <Setter Property="Fill" Value="#3F51B5"/>
-                                                                        <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding IsCorrect}" Value="True">
-                                                                                <Setter Property="Fill" Value="#4CAF50"/>
-                                                                            </DataTrigger>
-                                                                        </Style.Triggers>
-                                                                    </Style>
-                                                                </Ellipse.Style>
-                                                            </Ellipse>
-                                                            <TextBlock TextWrapping="Wrap">
-                                                                <TextBlock.Style>
-                                                                    <Style TargetType="TextBlock">
-                                                                        <Setter Property="Foreground" Value="#546E7A"/>
-                                                                        <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding IsCorrect}" Value="True">
-                                                                                <Setter Property="Foreground" Value="#2E7D32"/>
-                                                                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                                                            </DataTrigger>
-                                                                        </Style.Triggers>
-                                                                    </Style>
-                                                                </TextBlock.Style>
-                                                                <Run Text="{Binding Text, Mode=OneWay}"/>
-                                                            </TextBlock>
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                        <!-- Generált kérdések - ÚJ generálás nélkül is látszik ez a szekció -->
+                        <Border Margin="20">
+                            <StackPanel>
+                                <!-- Header + AI Kérdésgenerálás gomb - MINDIG LÁTHATÓ -->
+                                <Grid Margin="0,0,0,16">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Background="#F3E5F5"
+                                               CornerRadius="10"
+                                               Padding="8"
+                                               Margin="0,0,12,0">
+                                            <materialDesign:PackIcon Kind="HelpCircle" 
+                                                                    Width="24" 
+                                                                    Height="24" 
+                                                                    Foreground="#9C27B0"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Generált Kérdések" 
+                                                      FontSize="18" 
+                                                      FontWeight="Bold" 
+                                                      Foreground="#1E293B"/>
+                                            <TextBlock FontSize="13" Foreground="#64748B">
+                                                <Run Text="{Binding DistinctQuestions.Count, Mode=OneWay}"/>
+                                                <Run Text="kérdés"/>
+                                            </TextBlock>
                                         </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </Grid>
+                                    </StackPanel>
+
+                                    <!-- AI Kérdésgenerálás gomb - JOBB OLDAL -->
+                                    <Button HorizontalAlignment="Right"
+                                            Command="{Binding GenerateQuestionsCommand}"
+                                            Height="48"
+                                            Padding="20,0"
+                                            Background="#9C27B0"
+                                            Foreground="White"
+                                            BorderThickness="0"
+                                            Cursor="Hand">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}" 
+                                                                   CornerRadius="10"
+                                                                   Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" 
+                                                                                VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#7B1FA2"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter Property="Background" Value="#CBD5E1"/>
+                                                        <Setter Property="Cursor" Value="Arrow"/>
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding IsGenerating}" Value="True">
+                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="AutoFix" 
+                                                                    Width="20" 
+                                                                    Height="20" 
+                                                                    VerticalAlignment="Center" 
+                                                                    Margin="0,0,8,0"/>
+                                            <TextBlock Text="Kérdések Generálása" 
+                                                      VerticalAlignment="Center"
+                                                      FontSize="14"
+                                                      FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Kérdések listája - Csak ha vannak -->
+                                <ItemsControl ItemsSource="{Binding DistinctQuestions}"
+                                             Visibility="{Binding HasQuestions, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#F8F9FA" 
+                                                   BorderBrush="#E2E8F0" 
+                                                   BorderThickness="1" 
+                                                   CornerRadius="12" 
+                                                   Padding="20" 
+                                                   Margin="0,0,0,12">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Text}" 
+                                                              FontWeight="SemiBold" 
+                                                              FontSize="15" 
+                                                              Foreground="#1E293B" 
+                                                              TextWrapping="Wrap" 
+                                                              Margin="0,0,0,12"/>
+                                                    <ItemsControl ItemsSource="{Binding Answers}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Orientation="Horizontal" Margin="0,6">
+                                                                    <Border Width="8" 
+                                                                           Height="8"
+                                                                           CornerRadius="4"
+                                                                           Margin="0,0,10,0" 
+                                                                           VerticalAlignment="Center">
+                                                                        <Border.Style>
+                                                                            <Style TargetType="Border">
+                                                                                <Setter Property="Background" Value="#6366F1"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsCorrect}" Value="True">
+                                                                                        <Setter Property="Background" Value="#10B981"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Border.Style>
+                                                                    </Border>
+                                                                    <TextBlock Text="{Binding Text, Mode=OneWay}"
+                                                                              TextWrapping="Wrap"
+                                                                              FontSize="14">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Foreground" Value="#64748B"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsCorrect}" Value="True">
+                                                                                        <Setter Property="Foreground" Value="#059669"/>
+                                                                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </ScrollViewer>
             </Border>
         </Grid>

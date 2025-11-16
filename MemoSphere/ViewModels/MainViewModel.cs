@@ -15,6 +15,12 @@ using WPF.Views.Quiz;
 
 namespace WPF.ViewModels
 {
+    public enum MainViewType
+    {
+        Dashboard,
+        Browser,
+        QuizCenter
+    }
     public class MainViewModel : BaseViewModel
     {
         private readonly HierarchyCoordinator _hierarchyCoordinator;
@@ -50,6 +56,14 @@ namespace WPF.ViewModels
                 }
             }
         }
+
+        private MainViewType _currentMainView;
+        public MainViewType CurrentMainView
+        {
+            get => _currentMainView;
+            set => SetProperty(ref _currentMainView, value);
+        }
+
         private string _searchQuery = string.Empty;
         public string SearchQuery
         {
@@ -130,6 +144,9 @@ namespace WPF.ViewModels
         public RelayCommand ToggleNoteListCommand { get; }
         public RelayCommand OpenNoteCommand { get; }
         public ICommand LogoutCommand { get; }
+        public RelayCommand ShowDashboardViewCommand { get; }
+        public RelayCommand ShowBrowserViewCommand { get; }
+        public RelayCommand ShowQuizCenterCommand { get; }
         public MainViewModel(
             SubjectListViewModel subjectsVM,
             TopicListViewModel topicsVM,
@@ -199,6 +216,23 @@ namespace WPF.ViewModels
                 }
             });
             LogoutCommand = new RelayCommand(async _ => await LogoutAsync());
+            StartQuizCommand = new RelayCommand(
+                async _ => await OpenQuizCenterAsync(),
+                _ => SubjectsVM.SelectedSubject != null && !IsQuizActive
+            );
+            ShowDashboardViewCommand = new RelayCommand(async _ =>
+            {
+                await DashboardVM.LoadDashboardDataAsync();
+                CurrentMainView = MainViewType.Dashboard;
+            });
+            ShowBrowserViewCommand = new RelayCommand(_ => CurrentMainView = MainViewType.Browser);
+            ShowQuizCenterCommand = new RelayCommand(
+                async _ => await OpenQuizCenterAsync(),
+                _ => SubjectsVM.SelectedSubject != null
+            );
+
+            _currentMainView = MainViewType.Dashboard;
+
             CurrentUserEmail = _authService.GetCurrentUserEmail() ?? "Ismeretlen";
             _hierarchyCoordinator.Initialize();
             SetupEventSubscriptions();
@@ -580,6 +614,39 @@ namespace WPF.ViewModels
             {
                 System.Diagnostics.Debug.WriteLine($"Logout hiba: {ex.Message}");
                 MessageBox.Show($"Hiba a kijelentkezés során: {ex.Message}", "Hiba");
+            }
+        }
+        private async Task OpenQuizCenterAsync()
+        {
+            if (SubjectsVM.SelectedSubject == null)
+            {
+                MessageBox.Show("Előbb válassz egy tantárgyat a Böngésző nézetben.", "Nincs kiválasztva tantárgy", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CurrentMainView = MainViewType.Browser;
+                return;
+            }
+
+            try
+            {
+                await QuizSelectionVM.LoadTopicsAsync(SubjectsVM.SelectedSubject.Id);
+
+                CurrentMainView = MainViewType.QuizCenter;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Hiba a kvíz-választó betöltésekor: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        public void AddNewNoteAndShowBrowser()
+        {
+            CurrentMainView = MainViewType.Browser;
+
+            if (TopicsVM.SelectedTopic != null)
+            {
+                CreateNewNote();
+            }
+            else
+            {
+                MessageBox.Show("Válassz ki egy témakört a bal oldali sávban, ahová az új jegyzetet létrehozod.", "Nincs témakör kiválasztva", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
     }

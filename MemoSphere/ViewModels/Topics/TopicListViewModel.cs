@@ -19,6 +19,7 @@ namespace WPF.ViewModels.Topics
         public RelayCommand DeleteTopicCommand { get; }
         public RelayCommand ActivateTopicCommand { get; }
         public RelayCommand DeactivateTopicCommand { get; }
+        public RelayCommand SelectTopicCommand { get; }
         public event Action<Topic> EditTopicRequested;
         public event Action<int> DeleteTopicRequested;
         public event Action<TopicViewModel> TopicSelected;
@@ -47,6 +48,15 @@ namespace WPF.ViewModels.Topics
             _activeLearningService = activeLearningService;
             // REMOVE: _dashboardViewModel = dashboardViewModel;
 
+            SelectTopicCommand = new RelayCommand(
+                 param =>
+                 {
+                     if (param is TopicViewModel vm)
+                     {
+                         SelectedTopic = vm;
+                     }
+                 }
+             );
             EditTopicCommand = new RelayCommand(
                 param => { if (param is TopicViewModel topicVM) EditTopicRequested?.Invoke(topicVM.Topic); },
                 param => param is TopicViewModel);
