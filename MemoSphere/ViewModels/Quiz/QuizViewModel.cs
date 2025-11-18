@@ -1,7 +1,12 @@
-﻿using Core.Interfaces.Services;
+﻿using Core.Entities;
+using Core.Interfaces.Services;
 using Data.Services;
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -14,10 +19,13 @@ namespace WPF.ViewModels.Quiz
         private readonly IQuizService _quizService;
         private readonly IQuestionService _questionService;
         private readonly DispatcherTimer _timer;
-        private readonly int _quizDurationInSeconds = 300;
-        
-        private readonly int _requiredQuestionCount = 10;
-        private readonly int _minRequiredQuestionCount = 3;
+
+        // --- Beállítások ---
+        private const int SecondsPerQuestion = 60; // 1 perc kérdésenként
+        private const int MaxQuestionsPerNoteQuiz = 10; // Max 10 kérdés egy jegyzet-kvízben
+
+        private readonly int _requiredQuestionCount = 10; // Témakörös kvíz célja
+        private readonly int _minRequiredQuestionCount = 3; // Minimum kérdésszám
 
         private bool _canStartQuiz = false;
 
@@ -82,7 +90,6 @@ namespace WPF.ViewModels.Quiz
         public AsyncCommand<int> LoadQuizFromNoteCommand { get; }
         public AsyncCommand<object> SubmitAnswerCommand { get; }
 
-
         public ICommand NavigateNextCommand { get; }
         public ICommand RestartQuizCommand { get; }
         public RelayCommand CloseQuizCommand { get; }
@@ -97,7 +104,6 @@ namespace WPF.ViewModels.Quiz
             _quizService = quizService ?? throw new ArgumentNullException(nameof(quizService));
             _questionService = questionService ?? throw new ArgumentNullException(nameof(questionService));
 
-
             LoadQuizCommand = new AsyncCommand<List<int>>(LoadQuizAsync, CanLoadQuiz);
             SubmitAnswerCommand = new AsyncCommand<object>(SubmitAnswerAsync, CanSubmitAnswer);
             NavigateNextCommand = new RelayCommand(NavigateNext, CanNavigateNext);
@@ -105,7 +111,8 @@ namespace WPF.ViewModels.Quiz
             CloseQuizCommand = new RelayCommand(_ => CloseQuiz());
             LoadQuizFromNoteCommand = new AsyncCommand<int>(LoadQuizFromNoteAsync, CanLoadQuizFromNote);
 
-            _secondsRemaining = _quizDurationInSeconds;
+            // Kezdeti érték (csak placeholder, a LoadQuiz állítja be)
+            _secondsRemaining = 0;
             OnPropertyChanged(nameof(RemainingTimeText));
 
             _timer = new DispatcherTimer();
@@ -128,14 +135,12 @@ namespace WPF.ViewModels.Quiz
                 var availableCount = await _quizService.GetQuestionCountForTopicsAsync(topicIds);
                 int questionsToLoad = Math.Min(_requiredQuestionCount, availableCount);
 
-                // Ha nincs elég kérdés, ellenőrizzük, hogy eléri-e a minimumot
                 if (availableCount < _minRequiredQuestionCount)
                 {
                     MessageBox.Show($"Túl kevés kérdés van ({availableCount}). Legalább {_minRequiredQuestionCount} szükséges a kvízhez.");
                     return;
                 }
 
-                // Kérdések lekérése (akár kevesebb, mint 10)
                 var questions = await _quizService.GetRandomQuestionsForQuizAsync(topicIds, questionsToLoad);
 
                 if (questions == null || !questions.Any())
@@ -145,24 +150,10 @@ namespace WPF.ViewModels.Quiz
                 }
 
                 QuizItems = new ObservableCollection<QuizItemViewModel>(
-                    questions.Select(q => new QuizItemViewModel(q)).Where(vm => vm != null)  // Null filter
+                    questions.Select(q => new QuizItemViewModel(q)).Where(vm => vm != null)
                 );
 
-                _currentQuestionIndex = 0;
-                _secondsRemaining = _quizDurationInSeconds;
-                IsQuizFinished = false;
-                CorrectAnswers = 0;
-
-                // Kvíz indítása
-                _timer.Start();
-
-                OnPropertyChanged(nameof(CurrentItem));
-                OnPropertyChanged(nameof(StatusText));
-                OnPropertyChanged(nameof(RemainingTimeText));
-                OnPropertyChanged(nameof(TotalQuestions));
-                OnPropertyChanged(nameof(ResultText));
-
-                RaiseCommandsCanExecuteChanged();
+                StartQuizLogic();
             }
             catch (Exception ex)
             {
@@ -171,36 +162,31 @@ namespace WPF.ViewModels.Quiz
                 IsQuizFinished = true;
             }
         }
+
         private async Task LoadQuizFromNoteAsync(int noteId)
         {
             try
             {
-                var questions = (await _questionService.GetQuestionsForNoteAsync(noteId)).ToList();
+                var allQuestions = (await _questionService.GetQuestionsForNoteAsync(noteId)).ToList();
 
-                if (questions == null || !questions.Any())
+                if (allQuestions == null || !allQuestions.Any())
                 {
                     MessageBox.Show("Ehhez a jegyzethez még nem tartoznak kérdések.", "Nincs kérdés", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
 
+                // ✅ Véletlenszerű kiválasztás és limitálás (Max 10 kérdés)
+                var random = new Random();
+                var selectedQuestions = allQuestions
+                    .OrderBy(x => random.Next())
+                    .Take(MaxQuestionsPerNoteQuiz)
+                    .ToList();
+
                 QuizItems = new ObservableCollection<QuizItemViewModel>(
-                    questions.Select(q => new QuizItemViewModel(q)).Where(vm => vm != null)
+                    selectedQuestions.Select(q => new QuizItemViewModel(q)).Where(vm => vm != null)
                 );
 
-                _currentQuestionIndex = 0;
-                _secondsRemaining = _quizDurationInSeconds;
-                IsQuizFinished = false;
-                CorrectAnswers = 0;
-
-                _timer.Start();
-
-                OnPropertyChanged(nameof(CurrentItem));
-                OnPropertyChanged(nameof(StatusText));
-                OnPropertyChanged(nameof(RemainingTimeText));
-                OnPropertyChanged(nameof(TotalQuestions));
-                OnPropertyChanged(nameof(ResultText));
-
-                RaiseCommandsCanExecuteChanged();
+                StartQuizLogic();
             }
             catch (Exception ex)
             {
@@ -208,6 +194,28 @@ namespace WPF.ViewModels.Quiz
                 _timer.Stop();
                 IsQuizFinished = true;
             }
+        }
+
+        // Közös indítási logika (Dinamikus idővel)
+        private void StartQuizLogic()
+        {
+            _currentQuestionIndex = 0;
+
+            // ✅ Dinamikus időszámítás: Kérdések száma * 60 másodperc
+            _secondsRemaining = QuizItems.Count * SecondsPerQuestion;
+
+            IsQuizFinished = false;
+            CorrectAnswers = 0;
+
+            _timer.Start();
+
+            OnPropertyChanged(nameof(CurrentItem));
+            OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(RemainingTimeText));
+            OnPropertyChanged(nameof(TotalQuestions));
+            OnPropertyChanged(nameof(ResultText));
+
+            RaiseCommandsCanExecuteChanged();
         }
 
         private bool CanLoadQuiz(List<int> topicIds) => !IsQuizFinished && _canStartQuiz;
@@ -277,7 +285,6 @@ namespace WPF.ViewModels.Quiz
             RaiseCommandsCanExecuteChanged();
         }
 
-
         private void NavigateNext(object parameter)
         {
             if (_currentQuestionIndex < _quizItems.Count - 1)
@@ -305,7 +312,7 @@ namespace WPF.ViewModels.Quiz
                 item.Reset();
             }
 
-            // Újrakeverjük a válaszokat (opcionális)
+            // Újrakeverjük a válaszokat
             foreach (var item in QuizItems)
             {
                 var random = new Random();
@@ -317,25 +324,9 @@ namespace WPF.ViewModels.Quiz
                 }
             }
 
-            _currentQuestionIndex = 0;
-            _secondsRemaining = _quizDurationInSeconds;
-            IsQuizFinished = false;
-            CorrectAnswers = 0;
-
-            // Újraindítjuk a timert
-            _timer.Start();
-
-            OnPropertyChanged(nameof(CurrentItem));
-            OnPropertyChanged(nameof(StatusText));
-            OnPropertyChanged(nameof(RemainingTimeText));
-            OnPropertyChanged(nameof(ResultText));
-            OnPropertyChanged(nameof(TotalQuestions));
-            OnPropertyChanged(nameof(IsCurrentQuestionAnswered));
-
-            RaiseCommandsCanExecuteChanged();
+            StartQuizLogic(); // Újraindítjuk a logikát a dinamikus idővel
         }
 
-        // Segédmetódus a Commandok állapotának frissítéséhez
         private void RaiseCommandsCanExecuteChanged()
         {
             SubmitAnswerCommand.RaiseCanExecuteChanged();
@@ -343,8 +334,6 @@ namespace WPF.ViewModels.Quiz
             ((RelayCommand)RestartQuizCommand).RaiseCanExecuteChanged();
             LoadQuizCommand.RaiseCanExecuteChanged();
         }
-
-        // --- Timer és Kiértékelés ---
 
         private void Timer_Tick(object sender, EventArgs e)
         {
@@ -371,15 +360,12 @@ namespace WPF.ViewModels.Quiz
         {
             _timer.Stop();
 
-            // Automatikusan beküldjük a még nem beküldött válaszokat
             foreach (var item in QuizItems.Where(i => !i.IsAnswerSubmitted))
             {
                 item.IsAnswerSubmitted = true;
             }
 
             IsQuizFinished = true;
-
-            // Eredmény számítás
             CorrectAnswers = QuizItems.Count(item => item.IsCorrect);
 
             OnPropertyChanged(nameof(StatusText));
@@ -396,44 +382,30 @@ namespace WPF.ViewModels.Quiz
         {
             System.Diagnostics.Debug.WriteLine("🚪 CloseQuiz called");
             ResetState();
-
             CloseRequested?.Invoke();
         }
+
         public void ResetState()
         {
-            System.Diagnostics.Debug.WriteLine("🔄 QuizViewModel.ResetState() called");
-
-            // Timer leállítása
             _timer?.Stop();
-
-            // Kérdések törlése
             _quizItems.Clear();
-
-            // Állapot reset
             _currentQuestionIndex = 0;
-            _secondsRemaining = _quizDurationInSeconds;
+            _secondsRemaining = 0;
             _isQuizFinished = false;
             _correctAnswers = 0;
             _isEvaluating = false;
 
-            // Értesítések minden property-ről
+            // Frissítjük a UI-t
             OnPropertyChanged(nameof(QuizItems));
             OnPropertyChanged(nameof(CurrentItem));
             OnPropertyChanged(nameof(StatusText));
             OnPropertyChanged(nameof(RemainingTimeText));
             OnPropertyChanged(nameof(IsQuizFinished));
             OnPropertyChanged(nameof(IsCurrentQuestionAnswered));
-            OnPropertyChanged(nameof(CorrectAnswers));
-            OnPropertyChanged(nameof(TotalQuestions));
             OnPropertyChanged(nameof(ResultText));
-            OnPropertyChanged(nameof(IsEvaluating));
 
-            // Command-ok frissítése
             RaiseCommandsCanExecuteChanged();
-
-            System.Diagnostics.Debug.WriteLine("✅ QuizViewModel state reset complete");
         }
-
         public async Task ValidateTopicsForQuizAsync(List<int> topicIds)
         {
             System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");

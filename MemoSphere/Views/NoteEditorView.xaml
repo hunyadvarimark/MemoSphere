@@ -10,7 +10,6 @@
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
-        <!-- Floating Action Button Style -->
         <Style x:Key="FloatingActionButton" TargetType="Button">
             <Setter Property="Width" Value="56"/>
             <Setter Property="Height" Value="56"/>
@@ -43,7 +42,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Icon Button Style -->
         <Style x:Key="IconButton" TargetType="Button">
             <Setter Property="Width" Value="40"/>
             <Setter Property="Height" Value="40"/>
@@ -70,7 +68,6 @@
     </UserControl.Resources>
 
     <Grid>
-        <!-- Üres állapot -->
         <Border>
             <Border.Style>
                 <Style TargetType="Border">
@@ -84,24 +81,23 @@
             </Border.Style>
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <materialDesign:PackIcon Kind="NoteOutline" 
-                                        Width="80" 
-                                        Height="80" 
-                                        Foreground="#CBD5E1"
-                                        Margin="0,0,0,20"/>
+                                     Width="80" 
+                                     Height="80" 
+                                     Foreground="#CBD5E1" 
+                                     Margin="0,0,0,20"/>
                 <TextBlock Text="Nincs megnyitott jegyzet" 
                           FontSize="20" 
-                          FontWeight="SemiBold"
-                          Foreground="#64748B"
-                          HorizontalAlignment="Center"
+                          FontWeight="SemiBold" 
+                          Foreground="#64748B" 
+                          HorizontalAlignment="Center" 
                           Margin="0,0,0,8"/>
                 <TextBlock Text="Válassz egy jegyzetet a listából vagy hozz létre újat" 
                           FontSize="14" 
-                          Foreground="#94A3B8"
+                          Foreground="#94A3B8" 
                           HorizontalAlignment="Center"/>
             </StackPanel>
         </Border>
 
-        <!-- Jegyzet szerkesztő -->
         <Grid>
             <Grid.Style>
                 <Style TargetType="Grid">
@@ -120,11 +116,10 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Header: Cím + Autosave + PDF Import -->
             <Border Grid.Row="0" 
                     BorderBrush="#E2E8F0" 
                     BorderThickness="0,0,0,1" 
-                    Padding="24,16"
+                    Padding="24,16" 
                     Background="#FAFBFC">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -133,7 +128,6 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- PDF Import gomb - BAL OLDAL (csak üres jegyzetnél) -->
                     <Button Grid.Column="0"
                             Command="{Binding ImportPdfCommand}"
                             ToolTip="PDF importálása"
@@ -168,7 +162,6 @@
                                     <DataTrigger Binding="{Binding IsImporting}" Value="True">
                                         <Setter Property="IsEnabled" Value="False"/>
                                     </DataTrigger>
-                                    <!-- Elrejtjük ha már van tartalom -->
                                     <DataTrigger Binding="{Binding Content.Length, Converter={StaticResource BooleanToVisibilityConverter}}" Value="True">
                                         <Setter Property="Visibility" Value="Collapsed"/>
                                     </DataTrigger>
@@ -181,7 +174,6 @@
                                                 Foreground="White"/>
                     </Button>
 
-                    <!-- Cím - KÖZÉPEN -->
                     <TextBox Grid.Column="1"
                              Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
                              FontSize="20"
@@ -200,9 +192,9 @@
                                                 <VisualBrush Stretch="None" AlignmentX="Left">
                                                     <VisualBrush.Visual>
                                                         <TextBlock Text="📝 Jegyzet címe..." 
-                                                                  Foreground="#94A3B8" 
-                                                                  FontSize="20"
-                                                                  Padding="8,0"/>
+                                                                 Foreground="#94A3B8" 
+                                                                 FontSize="20" 
+                                                                 Padding="8,0"/>
                                                     </VisualBrush.Visual>
                                                 </VisualBrush>
                                             </Setter.Value>
@@ -213,86 +205,57 @@
                         </TextBox.Style>
                     </TextBox>
 
-                    <!-- Autosave + Toggle Edit - JOBB OLDAL -->
-                    <StackPanel Grid.Column="2" 
-                               Orientation="Horizontal" 
-                               VerticalAlignment="Center">
-                        <!-- Autosave indicator -->
-                        <Border Background="#ECFDF5"
-                               BorderBrush="#10B981"
-                               BorderThickness="1"
-                               CornerRadius="8"
-                               Padding="10,6"
-                               Margin="0,0,12,0">
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="CloudCheck" 
-                                                        Width="16" 
-                                                        Height="16" 
-                                                        Foreground="#10B981"
-                                                        VerticalAlignment="Center"
-                                                        Margin="0,0,6,0"/>
-                                <TextBlock Text="Mentve" 
-                                          FontSize="12" 
-                                          FontWeight="SemiBold"
-                                          Foreground="#10B981"
-                                          VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Toggle Edit Mode gomb -->
-                        <Button Command="{Binding ToggleEditModeCommand}"
-                                Width="44"
-                                Height="44"
-                                BorderThickness="0"
-                                Cursor="Hand">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Background" Value="#4CAF50"/>
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" 
-                                                       CornerRadius="10">
-                                                    <ContentPresenter HorizontalAlignment="Center" 
-                                                                    VerticalAlignment="Center"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
+                    <Button Grid.Column="2"
+                            Command="{Binding ToggleEditModeCommand}"
+                            Width="44"
+                            Height="44"
+                            BorderThickness="0"
+                            Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#4CAF50"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" 
+                                                   CornerRadius="10">
+                                                <ContentPresenter HorizontalAlignment="Center" 
+                                                                VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#388E3C"/>
+                                    </Trigger>
+                                    <DataTrigger Binding="{Binding IsMarkdownContent}" Value="False">
+                                        <Setter Property="Background" Value="#6366F1"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <materialDesign:PackIcon Width="20" 
+                                                Height="20" 
+                                                Foreground="White">
+                            <materialDesign:PackIcon.Style>
+                                <Style TargetType="materialDesign:PackIcon">
+                                    <Setter Property="Kind" Value="Eye"/>
                                     <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#388E3C"/>
-                                        </Trigger>
                                         <DataTrigger Binding="{Binding IsMarkdownContent}" Value="False">
-                                            <Setter Property="Background" Value="#6366F1"/>
+                                            <Setter Property="Kind" Value="Pencil"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
-                            </Button.Style>
-                            <materialDesign:PackIcon Width="20" 
-                                                    Height="20"
-                                                    Foreground="White">
-                                <materialDesign:PackIcon.Style>
-                                    <Style TargetType="materialDesign:PackIcon">
-                                        <Setter Property="Kind" Value="Eye"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsMarkdownContent}" Value="False">
-                                                <Setter Property="Kind" Value="Pencil"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </materialDesign:PackIcon.Style>
-                            </materialDesign:PackIcon>
-                        </Button>
-                    </StackPanel>
+                            </materialDesign:PackIcon.Style>
+                        </materialDesign:PackIcon>
+                    </Button>
                 </Grid>
             </Border>
 
-            <!-- Tartalom szerkesztő -->
             <Grid Grid.Row="1">
                 <Border Padding="24">
                     <Grid>
-                        <!-- SZERKESZTHETŐ MÓD: TextBox -->
                         <TextBox Text="{Binding Content, UpdateSourceTrigger=PropertyChanged}"
                                  AcceptsReturn="True"
                                  TextWrapping="Wrap"
@@ -315,9 +278,9 @@
                                                     <VisualBrush Stretch="None" AlignmentX="Left" AlignmentY="Top">
                                                         <VisualBrush.Visual>
                                                             <TextBlock Text="Kezdj el írni..." 
-                                                                      Foreground="#94A3B8" 
-                                                                      FontSize="15"
-                                                                      Margin="2,0,0,0"/>
+                                                                     Foreground="#94A3B8" 
+                                                                     FontSize="15" 
+                                                                     Margin="2,0,0,0"/>
                                                         </VisualBrush.Visual>
                                                     </VisualBrush>
                                                 </Setter.Value>
@@ -328,7 +291,6 @@
                             </TextBox.Style>
                         </TextBox>
 
-                        <!-- OLVASÁSI MÓD: WebView2 -->
                         <Border BorderThickness="0">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -337,7 +299,6 @@
                                         <MultiDataTrigger>
                                             <MultiDataTrigger.Conditions>
                                                 <Condition Binding="{Binding IsMarkdownContent}" Value="True"/>
-                                                <Condition Binding="{Binding DataContext.IsDialogOpen, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                             </MultiDataTrigger.Conditions>
                                             <Setter Property="Visibility" Value="Visible"/>
                                         </MultiDataTrigger>
@@ -345,20 +306,17 @@
                                 </Style>
                             </Border.Style>
                             <wv2:WebView2 x:Name="NoteContentWebView"
-                                          utilities:WebViewHelper.HtmlSource="{Binding Content}"/>
+                                        utilities:WebViewHelper.HtmlSource="{Binding Content}"/>
                         </Border>
                     </Grid>
                 </Border>
 
-                <!-- FLOATING ACTION BUTTON - JOBB ALSÓ SAROK -->
                 <StackPanel VerticalAlignment="Bottom" 
-                           HorizontalAlignment="Right"
-                           Margin="0,0,24,24">
-
-                    <!-- Jegyzet Kvíz FAB -->
+                            HorizontalAlignment="Right" 
+                            Margin="0,0,24,24">
                     <Button Command="{Binding StartNoteQuizCommand}"
-        Background="#00BCD4"
-        ToolTip="Kvíz indítása ebből a jegyzetből">
+                            ToolTip="Kvíz indítása ebből a jegyzetből"
+                            Margin="0,0,0,12">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource FloatingActionButton}">
                                 <Setter Property="Background" Value="#00BCD4"/>
@@ -373,21 +331,41 @@
                             </Style>
                         </Button.Style>
                         <materialDesign:PackIcon Kind="RocketLaunch" 
-                            Width="28" 
-                            Height="28" 
-                            Foreground="White"/>
+                                                 Width="28" 
+                                                 Height="28" 
+                                                 Foreground="White"/>
                     </Button>
+
+                    <Button Command="{Binding SaveCommand}"
+                            ToolTip="Jegyzet mentése">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource FloatingActionButton}">
+                                <Setter Property="Background" Value="#2196F3"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#1976D2"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Background" Value="#CBD5E1"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <materialDesign:PackIcon Kind="ContentSave" 
+                                                 Width="28" 
+                                                 Height="28" 
+                                                 Foreground="White"/>
+                    </Button>
+
                 </StackPanel>
             </Grid>
 
-            <!-- Loading Indicators + Generált kérdések -->
             <Border Grid.Row="2"
                     BorderBrush="#E2E8F0"
                     BorderThickness="0,1,0,0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                              MaxHeight="350">
                     <StackPanel>
-                        <!-- AI Kérdésgenerálás Loading -->
                         <Border Background="#F3E5F5" 
                                 Padding="20" 
                                 Margin="20,20,20,0"
@@ -410,12 +388,12 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <materialDesign:PackIcon Grid.Column="0"
-                                                        Kind="Cog" 
-                                                        Width="28" 
-                                                        Height="28" 
-                                                        Foreground="#9C27B0"
-                                                        VerticalAlignment="Center"
-                                                        Margin="0,0,16,0">
+                                                         Kind="Cog" 
+                                                         Width="28" 
+                                                         Height="28" 
+                                                         Foreground="#9C27B0"
+                                                         VerticalAlignment="Center"
+                                                         Margin="0,0,16,0">
                                     <materialDesign:PackIcon.RenderTransform>
                                         <RotateTransform CenterX="14" CenterY="14"/>
                                     </materialDesign:PackIcon.RenderTransform>
@@ -440,21 +418,20 @@
                                 </materialDesign:PackIcon>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding GenerationStatus}" 
-                                              FontSize="15"
-                                              FontWeight="SemiBold"
-                                              Foreground="#6A1B9A"
-                                              TextWrapping="Wrap"
-                                              Margin="0,0,0,10"/>
+                                             FontSize="15" 
+                                             FontWeight="SemiBold" 
+                                             Foreground="#6A1B9A" 
+                                             TextWrapping="Wrap" 
+                                             Margin="0,0,0,10"/>
                                     <ProgressBar IsIndeterminate="True" 
-                                                Height="6" 
-                                                Foreground="#9C27B0"
-                                                Background="#E1BEE7"
-                                                BorderThickness="0"/>
+                                               Height="6" 
+                                               Foreground="#9C27B0" 
+                                               Background="#E1BEE7" 
+                                               BorderThickness="0"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
 
-                        <!-- PDF Import Loading -->
                         <Border Background="#FFF3E0" 
                                 Padding="20" 
                                 Margin="20,20,20,0"
@@ -477,48 +454,46 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <materialDesign:PackIcon Grid.Column="0"
-                                                        Kind="FilePdfBox" 
-                                                        Width="28" 
-                                                        Height="28" 
-                                                        Foreground="#FF6F00"
-                                                        VerticalAlignment="Center"
-                                                        Margin="0,0,16,0"/>
+                                                         Kind="FilePdfBox" 
+                                                         Width="28" 
+                                                         Height="28" 
+                                                         Foreground="#FF6F00"
+                                                         VerticalAlignment="Center"
+                                                         Margin="0,0,16,0"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding ImportStatus}" 
-                                              FontSize="15"
-                                              FontWeight="SemiBold"
-                                              Foreground="#E65100"
-                                              TextWrapping="Wrap"
-                                              Margin="0,0,0,10"/>
+                                             FontSize="15" 
+                                             FontWeight="SemiBold" 
+                                             Foreground="#E65100" 
+                                             TextWrapping="Wrap" 
+                                             Margin="0,0,0,10"/>
                                     <ProgressBar IsIndeterminate="True" 
-                                                Height="6" 
-                                                Foreground="#FF6F00"
-                                                Background="#FFE0B2"
-                                                BorderThickness="0"/>
+                                               Height="6" 
+                                               Foreground="#FF6F00" 
+                                               Background="#FFE0B2" 
+                                               BorderThickness="0"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
 
-                        <!-- Generált kérdések - ÚJ generálás nélkül is látszik ez a szekció -->
                         <Border Margin="20">
                             <StackPanel>
-                                <!-- Header + AI Kérdésgenerálás gomb - MINDIG LÁTHATÓ -->
                                 <Grid Margin="0,0,0,16">
                                     <StackPanel Orientation="Horizontal">
                                         <Border Background="#F3E5F5"
-                                               CornerRadius="10"
-                                               Padding="8"
-                                               Margin="0,0,12,0">
+                                                CornerRadius="10"
+                                                Padding="8"
+                                                Margin="0,0,12,0">
                                             <materialDesign:PackIcon Kind="HelpCircle" 
-                                                                    Width="24" 
-                                                                    Height="24" 
-                                                                    Foreground="#9C27B0"/>
+                                                                     Width="24" 
+                                                                     Height="24" 
+                                                                     Foreground="#9C27B0"/>
                                         </Border>
                                         <StackPanel VerticalAlignment="Center">
                                             <TextBlock Text="Generált Kérdések" 
-                                                      FontSize="18" 
-                                                      FontWeight="Bold" 
-                                                      Foreground="#1E293B"/>
+                                                     FontSize="18" 
+                                                     FontWeight="Bold" 
+                                                     Foreground="#1E293B"/>
                                             <TextBlock FontSize="13" Foreground="#64748B">
                                                 <Run Text="{Binding DistinctQuestions.Count, Mode=OneWay}"/>
                                                 <Run Text="kérdés"/>
@@ -526,7 +501,6 @@
                                         </StackPanel>
                                     </StackPanel>
 
-                                    <!-- AI Kérdésgenerálás gomb - JOBB OLDAL -->
                                     <Button HorizontalAlignment="Right"
                                             Command="{Binding GenerateQuestionsCommand}"
                                             Height="48"
@@ -541,10 +515,10 @@
                                                     <Setter.Value>
                                                         <ControlTemplate TargetType="Button">
                                                             <Border Background="{TemplateBinding Background}" 
-                                                                   CornerRadius="10"
-                                                                   Padding="{TemplateBinding Padding}">
+                                                                    CornerRadius="10"
+                                                                    Padding="{TemplateBinding Padding}">
                                                                 <ContentPresenter HorizontalAlignment="Center" 
-                                                                                VerticalAlignment="Center"/>
+                                                                                  VerticalAlignment="Center"/>
                                                             </Border>
                                                         </ControlTemplate>
                                                     </Setter.Value>
@@ -565,45 +539,44 @@
                                         </Button.Style>
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="AutoFix" 
-                                                                    Width="20" 
-                                                                    Height="20" 
-                                                                    VerticalAlignment="Center" 
-                                                                    Margin="0,0,8,0"/>
+                                                                     Width="20" 
+                                                                     Height="20" 
+                                                                     VerticalAlignment="Center" 
+                                                                     Margin="0,0,8,0"/>
                                             <TextBlock Text="Kérdések Generálása" 
-                                                      VerticalAlignment="Center"
-                                                      FontSize="14"
-                                                      FontWeight="SemiBold"/>
+                                                     VerticalAlignment="Center" 
+                                                     FontSize="14" 
+                                                     FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
                                 </Grid>
 
-                                <!-- Kérdések listája - Csak ha vannak -->
                                 <ItemsControl ItemsSource="{Binding DistinctQuestions}"
-                                             Visibility="{Binding HasQuestions, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                              Visibility="{Binding HasQuestions, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Background="#F8F9FA" 
-                                                   BorderBrush="#E2E8F0" 
-                                                   BorderThickness="1" 
-                                                   CornerRadius="12" 
-                                                   Padding="20" 
-                                                   Margin="0,0,0,12">
+                                                    BorderBrush="#E2E8F0" 
+                                                    BorderThickness="1" 
+                                                    CornerRadius="12" 
+                                                    Padding="20" 
+                                                    Margin="0,0,0,12">
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding Text}" 
-                                                              FontWeight="SemiBold" 
-                                                              FontSize="15" 
-                                                              Foreground="#1E293B" 
-                                                              TextWrapping="Wrap" 
-                                                              Margin="0,0,0,12"/>
+                                                             FontWeight="SemiBold" 
+                                                             FontSize="15" 
+                                                             Foreground="#1E293B" 
+                                                             TextWrapping="Wrap" 
+                                                             Margin="0,0,0,12"/>
                                                     <ItemsControl ItemsSource="{Binding Answers}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <StackPanel Orientation="Horizontal" Margin="0,6">
                                                                     <Border Width="8" 
-                                                                           Height="8"
-                                                                           CornerRadius="4"
-                                                                           Margin="0,0,10,0" 
-                                                                           VerticalAlignment="Center">
+                                                                            Height="8"
+                                                                            CornerRadius="4"
+                                                                            Margin="0,0,10,0" 
+                                                                            VerticalAlignment="Center">
                                                                         <Border.Style>
                                                                             <Style TargetType="Border">
                                                                                 <Setter Property="Background" Value="#6366F1"/>
@@ -616,8 +589,8 @@
                                                                         </Border.Style>
                                                                     </Border>
                                                                     <TextBlock Text="{Binding Text, Mode=OneWay}"
-                                                                              TextWrapping="Wrap"
-                                                                              FontSize="14">
+                                                                             TextWrapping="Wrap"
+                                                                             FontSize="14">
                                                                         <TextBlock.Style>
                                                                             <Style TargetType="TextBlock">
                                                                                 <Setter Property="Foreground" Value="#64748B"/>
