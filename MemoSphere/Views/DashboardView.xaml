@@ -39,29 +39,30 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Gradiens progress bar -->
-        <Style x:Key="ModernProgressBar" TargetType="ProgressBar">
-            <Setter Property="Height" Value="10"/>
+        <!-- Lekerekített Progress Bar stílus -->
+        <Style x:Key="RoundedProgressBar" TargetType="ProgressBar">
+            <Setter Property="Height" Value="8"/>
             <Setter Property="Background" Value="#E2E8F0"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Maximum" Value="100"/>
+            <Setter Property="Minimum" Value="0"/>
+            <Setter Property="IsIndeterminate" Value="False"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="5">
-                            <Grid>
-                                <Border x:Name="PART_Track" CornerRadius="5"/>
-                                <Border x:Name="PART_Indicator"
-                                        CornerRadius="5"
-                                        HorizontalAlignment="Left">
-                                    <Border.Background>
-                                        <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                            <GradientStop Color="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" Offset="0"/>
-                                            <GradientStop Color="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource LightenColorConverter}}" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Border.Background>
-                                </Border>
+                        <Grid>
+                            <Border Background="{TemplateBinding Background}" 
+                                    CornerRadius="4"
+                                    x:Name="PART_Track"/>
+                            <Grid x:Name="ProgressBarRoot" ClipToBounds="True">
+                                <Border CornerRadius="4" Background="{TemplateBinding Background}"/>
+                                <Rectangle x:Name="PART_Indicator" 
+                                          Fill="{TemplateBinding Foreground}"
+                                          HorizontalAlignment="Left"
+                                          RadiusX="4" 
+                                          RadiusY="4"/>
                             </Grid>
-                        </Border>
+                        </Grid>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -139,33 +140,14 @@
                             <Run Text="{Binding TotalDailyGoal, Mode=OneWay}" FontSize="24" Foreground="#94A3B8"/>
                         </TextBlock>
                         <ProgressBar Value="{Binding TotalProgressPercentage, Mode=OneWay}"
-                                     Height="8"
-                                     Background="#E2E8F0"
-                                     BorderThickness="0"
-                                     Foreground="#6366F1"
+                                     Style="{StaticResource RoundedProgressBar}"
                                      Margin="0,12,0,0">
-                            <ProgressBar.Style>
-                                <Style TargetType="ProgressBar">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="ProgressBar">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="4">
-                                                    <Border x:Name="PART_Indicator"
-                                                            CornerRadius="4"
-                                                            HorizontalAlignment="Left">
-                                                        <Border.Background>
-                                                            <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                                                <GradientStop Color="#6366F1" Offset="0"/>
-                                                                <GradientStop Color="#8B5CF6" Offset="1"/>
-                                                            </LinearGradientBrush>
-                                                        </Border.Background>
-                                                    </Border>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </ProgressBar.Style>
+                            <ProgressBar.Foreground>
+                                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                    <GradientStop Color="#6366F1" Offset="0"/>
+                                    <GradientStop Color="#8B5CF6" Offset="1"/>
+                                </LinearGradientBrush>
+                            </ProgressBar.Foreground>
                         </ProgressBar>
                         <TextBlock Text="{Binding TotalProgressPercentage, StringFormat={}{0:0}% teljesítve, Mode=OneWay}"
                                    FontSize="12"
@@ -350,32 +332,14 @@
                                                 </StackPanel>
                                             </Grid>
                                             <ProgressBar Value="{Binding DailyProgressPercentage, Mode=OneWay}"
-                                                         Height="8"
-                                                         Background="#E2E8F0"
-                                                         BorderThickness="0"
+                                                         Style="{StaticResource RoundedProgressBar}"
                                                          Margin="0,0,0,8">
-                                                <ProgressBar.Style>
-                                                    <Style TargetType="ProgressBar">
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="ProgressBar">
-                                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4">
-                                                                        <Border x:Name="PART_Indicator"
-                                                                                CornerRadius="4"
-                                                                                HorizontalAlignment="Left">
-                                                                            <Border.Background>
-                                                                                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                                                                    <GradientStop Color="#10B981" Offset="0"/>
-                                                                                    <GradientStop Color="#34D399" Offset="1"/>
-                                                                                </LinearGradientBrush>
-                                                                            </Border.Background>
-                                                                        </Border>
-                                                                    </Border>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </ProgressBar.Style>
+                                                <ProgressBar.Foreground>
+                                                    <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                                        <GradientStop Color="#10B981" Offset="0"/>
+                                                        <GradientStop Color="#34D399" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </ProgressBar.Foreground>
                                             </ProgressBar>
                                             <TextBlock Text="{Binding DailyProgressPercentage, StringFormat={}{0:0}% teljesítve, Mode=OneWay}"
                                                        FontSize="11"
@@ -398,31 +362,13 @@
                                                        HorizontalAlignment="Right"/>
                                         </Grid>
                                         <ProgressBar Value="{Binding MasteryPercentage, Mode=OneWay}"
-                                                     Height="8"
-                                                     Background="#E2E8F0"
-                                                     BorderThickness="0">
-                                            <ProgressBar.Style>
-                                                <Style TargetType="ProgressBar">
-                                                    <Setter Property="Template">
-                                                        <Setter.Value>
-                                                            <ControlTemplate TargetType="ProgressBar">
-                                                                <Border Background="{TemplateBinding Background}" CornerRadius="4">
-                                                                    <Border x:Name="PART_Indicator"
-                                                                            CornerRadius="4"
-                                                                            HorizontalAlignment="Left">
-                                                                        <Border.Background>
-                                                                            <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                                                                <GradientStop Color="#F59E0B" Offset="0"/>
-                                                                                <GradientStop Color="#FBBF24" Offset="1"/>
-                                                                            </LinearGradientBrush>
-                                                                        </Border.Background>
-                                                                    </Border>
-                                                                </Border>
-                                                            </ControlTemplate>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Style>
-                                            </ProgressBar.Style>
+                                                     Style="{StaticResource RoundedProgressBar}">
+                                            <ProgressBar.Foreground>
+                                                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                                    <GradientStop Color="#F59E0B" Offset="0"/>
+                                                    <GradientStop Color="#FBBF24" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </ProgressBar.Foreground>
                                         </ProgressBar>
                                     </StackPanel>
                                 </StackPanel>

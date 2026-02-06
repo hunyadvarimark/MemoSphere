@@ -28,22 +28,21 @@ public class GeminiService : IQuestionGeneratorService
     private async Task<string> CallGeminiApiAsync(string prompt, string modelNameOverride = null, bool isCleanupTask = false)
     {
         string actualGeminiModel = string.IsNullOrEmpty(modelNameOverride) ? DefaultGeminiModelName : modelNameOverride;
+
+        // string actualGeminiModel = "gemini-3.0-flash"; 
+
         var requestBody = new
         {
             contents = new[]
             {
-                new
-                {
-                    role = "user",
-                    parts = new[] { new { text = prompt } }
-                }
+                new { role = "user", parts = new[] { new { text = prompt } } }
             },
             generationConfig = new
             {
                 temperature = isCleanupTask ? 0.1 : 0.6,
                 topP = 0.7,
                 topK = isCleanupTask ? 20 : 40,
-                maxOutputTokens = 16384  // Maxon, de kisebb chunk-kal kerüzzük a hibát
+                maxOutputTokens = 8192
             },
             safetySettings = isCleanupTask ? new[]
             {
@@ -53,54 +52,60 @@ public class GeminiService : IQuestionGeneratorService
                 new { category = "HARM_CATEGORY_DANGEROUS_CONTENT", threshold = "BLOCK_NONE" }
             } : null
         };
+
         string jsonRequest = JsonConvert.SerializeObject(requestBody);
-        var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
         string requestUrl = $"{GeminiApiBaseUrl}{actualGeminiModel}:generateContent?key={_apiKey}";
-        try
+
+        int maxRetries = 3;
+        int delayMilliseconds = 2000;
+
+        for (int i = 0; i <= maxRetries; i++)
         {
-            HttpResponseMessage response = await _httpClient.PostAsync(requestUrl, content);
-            string responseBody = await response.Content.ReadAsStringAsync();
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                Console.WriteLine($"⚠️ Gemini HTTP hiba: {response.StatusCode}");
-                Console.WriteLine($"⚠️ Válasz: {responseBody}");
+                var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+
+                HttpResponseMessage response = await _httpClient.PostAsync(requestUrl, content);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable ||
+                    response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    if (i < maxRetries)
+                    {
+                        Console.WriteLine($"⚠️ Gemini szerver túlterhelt ({response.StatusCode}). Újrapróbálkozás ({i + 1}/{maxRetries}) {delayMilliseconds}ms múlva...");
+                        await Task.Delay(delayMilliseconds);
+                        delayMilliseconds *= 2;
+                        continue;
+                    }
+                }
+
+                response.EnsureSuccessStatusCode();
+
+                string responseBody = await response.Content.ReadAsStringAsync();
+                dynamic geminiResponse = JsonConvert.DeserializeObject(responseBody);
+
+                if (geminiResponse?.candidates?[0]?.finishReason != null)
+                {
+                    string finishReason = geminiResponse.candidates[0].finishReason.ToString();
+                    if (finishReason == "SAFETY")
+                    {
+                        Console.WriteLine("⚠️ SAFETY filter aktiválva");
+                        return string.Empty;
+                    }
+                }
+
+                string generatedText = geminiResponse?.candidates?[0]?.content?.parts?[0]?.text;
+                return generatedText ?? string.Empty;
             }
-            response.EnsureSuccessStatusCode();
-            dynamic geminiResponse = JsonConvert.DeserializeObject(responseBody);
-            if (geminiResponse?.candidates?[0]?.finishReason != null)
+            catch (Exception ex) when (i < maxRetries)
             {
-                string finishReason = geminiResponse.candidates[0].finishReason.ToString();
-                Console.WriteLine($"🔍 Finish reason: {finishReason}");
-                if (finishReason == "MAX_TOKENS")
-                {
-                    Console.WriteLine("⚠️ MAX_TOKENS - válasz levágva, de visszaadjuk amit kaptunk");
-                    string partialText = geminiResponse?.candidates?[0]?.content?.parts?[0]?.text;
-                    return partialText ?? string.Empty;
-                }
-                if (finishReason == "SAFETY")
-                {
-                    Console.WriteLine("⚠️ SAFETY filter aktiválva");
-                    return string.Empty;
-                }
+                Console.WriteLine($"❌ Hiba a hívás során: {ex.Message}. Újrapróbálkozás...");
+                await Task.Delay(delayMilliseconds);
+                delayMilliseconds *= 2;
             }
-            string generatedText = geminiResponse?.candidates?[0]?.content?.parts?[0]?.text;
-            return generatedText ?? string.Empty;
         }
-        catch (HttpRequestException ex)
-        {
-            Console.WriteLine($"❌ HTTP hiba: {ex.Message}");
-            throw new Exception("Hiba történt a Gemini API-val való kommunikáció során.");
-        }
-        catch (JsonException ex)
-        {
-            Console.WriteLine($"❌ JSON hiba: {ex.Message}");
-            throw new Exception("Érvénytelen JSON formátumú válasz érkezett a Gemini API-tól.");
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine($"❌ Váratlan hiba: {e.Message}");
-            throw new Exception($"Váratlan hiba történt a Gemini API hívás során: {e.Message}");
-        }
+
+        throw new Exception("A Gemini API nem elérhető (túlterhelt). Próbáld újra később.");
     }
 
     public async Task<List<QuestionAnswerPair>> GenerateQuestionsAsync(string context, QuestionType type, string modelNameOverride = null)
@@ -137,25 +142,81 @@ public class GeminiService : IQuestionGeneratorService
         return new List<string>();
     }
 
-    public async Task<bool> EvaluateAnswerAsync(string questionText, string userAnswer, string correctAnswer, string modelNameOverride = null)
+    public async Task<(bool IsCorrect, string Explanation)> EvaluateAnswerAsync(string questionText, string userAnswer, string correctAnswer, string context = null, string modelNameOverride = null)
     {
+        string contextBlock = string.IsNullOrWhiteSpace(context)
+        ? ""
+        : $"\nKontextus (Forrásanyag):\n{context}\n----------------\n";
+
         string prompt = $@"
-Kérdés: {questionText}
-Helyes példa válasz: {correctAnswer}
-Felhasználói válasz: {userAnswer}
-Értékeld a felhasználói választ az alábbi kritériumok alapján:
-- True, ha a lényegi tények 80%-ban egyeznek (szinonimák, eltérő megfogalmazás OK).
-- True, ha kulcsszavak (pl. nevek, dátumok) helyesek, még ha rövidebb/hosszabb a válasz.
-- False, ha kulcstény hibás vagy hiányzik.(kulcstény ami a konkrét kérdés megválaszolásához szükséges)
-Példák:
-- Helyes példa: ""Athén vezető lett a görög világban."" User: ""Athén hegemóniát szerzett."" -> true (szinonima).
-- Helyes példa: ""Periklész aranykora."" User: ""Demokrácia virágzott Athénban."" -> true (lényeg egyezik).
-- Helyes példa: ""Déloszi Szövetség."" User: ""Athén szövetséget kötött."" -> true (implicit).
-- Helyes példa: ""Athén erősödött."" User: ""Spárta győzött."" -> false (téves tény).
-Válaszolj csak 'true' vagy 'false' értékkel, magyarázat nélkül.";
-        string generatedText = await CallGeminiApiAsync(prompt, modelNameOverride);
-        string cleanResponse = generatedText.Trim().ToLower();
-        return cleanResponse == "true" || cleanResponse == "igaz";
+                Kérdés: {questionText}
+                {contextBlock}
+                Helyes példa válasz: {correctAnswer}
+                Felhasználói válasz: {userAnswer}
+
+                Értékeld a felhasználói választ KIZÁRÓLAG a megadott kérdés, a fenti kontextus (ha elérhető) és a helyes példa válasz alapján. 
+                NE HASZNÁLJ KÜLSŐ TUDÁST, MEMÓRIÁT VAGY TÉNYELLENŐRZÉST – csak a hasonlóságot vizsgáld a helyes példával és a kontextussal összhangban!
+                - True, ha a lényegi tények 80%-ban egyeznek (szinonimák, eltérő megfogalmazás OK).
+                - True, ha kulcsszavak (pl. nevek, dátumok) helyesek, még ha rövidebb/hosszabb a válasz.
+                - False, ha kulcstény hibás vagy hiányzik.(kulcstény ami a konkrét kérdés megválaszolásához szükséges)
+                Példák:
+                - Helyes példa: ""Athén vezető lett a görög világban."" User: ""Athén hegemóniát szerzett."" -> true (szinonima).
+                - Helyes példa: ""Periklész aranykora."" User: ""Demokrácia virágzott Athénban."" -> true (lényeg egyezik).
+                - Helyes példa: ""Déloszi Szövetség."" User: ""Athén szövetséget kötött."" -> true (implicit).
+                - Helyes példa: ""Athén erősödött."" User: ""Spárta győzött."" -> false (téves tény).
+                Válaszformátum (KIZÁRÓLAG ez a JSON):
+                {{
+                  ""is_correct"": true/false,
+                  ""explanation"": ""Rövid magyar magyarázat a döntésről, KIZÁRÓLAG a kritériumok alapján. NE hasonlítsd össze a felhasználói választ a helyes példa 'pontosságával' vagy minőségével – csak a hasonlóságot/h違い említsd! Például: 'A lényeg egyezik, a szorzat és az egység helyes.' vagy 'Hiányzik a párhuzamosság említése, ami kulcstény.'""
+                }}
+                ";
+        try
+        {
+            string generatedText = await CallGeminiApiAsync(prompt, modelNameOverride);
+
+            Console.WriteLine($"DEBUG: Gemini Raw Response: {generatedText}");
+
+            if (string.IsNullOrWhiteSpace(generatedText))
+            {
+                return (false, "Az AI üres választ küldött.");
+            }
+
+            // 1. JSON KIVÁGÁSA
+            int firstBrace = generatedText.IndexOf('{');
+            int lastBrace = generatedText.LastIndexOf('}');
+
+            if (firstBrace >= 0 && lastBrace > firstBrace)
+            {
+                generatedText = generatedText.Substring(firstBrace, lastBrace - firstBrace + 1);
+            }
+            else
+            {
+                return (false, "Az AI válasza nem értelmezhető (nincs JSON).");
+            }
+
+            generatedText = Regex.Replace(generatedText, @"\\(?![u""\\/bfnrt])", "\\\\");
+
+            // 3. Deserializálás
+            dynamic response = JsonConvert.DeserializeObject(generatedText);
+
+            if (response == null || response.is_correct == null || response.explanation == null)
+            {
+                return (false, "Az AI válasza hiányos JSON struktúrát tartalmazott.");
+            }
+
+            bool isCorrect = (bool)response.is_correct;
+            string explanation = (string)response.explanation;
+
+            Console.WriteLine($"🤖 AI Evaluation: {isCorrect} | Reason: {explanation}");
+
+            return (isCorrect, explanation);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ AI Evaluation Exception: {ex.Message}");
+            Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+            return (false, "Technikai hiba történt az értékelés során (JSON parsing).");
+        }
     }
 
     private List<QuestionAnswerPair> ParseMultipleChoiceResponse(string generatedText)

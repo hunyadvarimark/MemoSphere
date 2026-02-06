@@ -12,6 +12,13 @@ namespace WPF.ViewModels.Quiz
         private bool _isAnswerSubmitted;
         private string _userAnswerText;
         private bool? _evalResult;
+
+        private string _evaluationFeedback;
+        public string EvaluationFeedback
+        {
+            get => _evaluationFeedback;
+            set => SetProperty(ref _evaluationFeedback, value);
+        }
         public string SampleAnswer => Question.Answers?.FirstOrDefault(a => a.IsCorrect)?.SampleAnswer ?? string.Empty;
         public bool IsShortAnswer => Question.QuestionType == Core.Enums.QuestionType.ShortAnswer;
 
@@ -82,11 +89,13 @@ namespace WPF.ViewModels.Quiz
             }
         }
 
-        public void SetLLMEvaluationResult(bool isCorrect)
+        public void SetLLMEvaluationResult(bool isCorrect, string explanation)
         {
             _evalResult = isCorrect;
+            EvaluationFeedback = explanation;
             OnPropertyChanged(nameof(IsCorrect));
         }
+
         public void Reset()
         {
             _selectedAnswer = null;

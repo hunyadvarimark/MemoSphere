@@ -9,7 +9,7 @@ namespace Core.Interfaces.Services
         Task DeleteQuestionAsync(int id);
         Task<bool> GenerateAndSaveQuestionsAsync(int noteId, QuestionType type);
         Task<IEnumerable<Question>> GetQuestionsForNoteAsync(int noteId);
-        Task<bool> EvaluateUserShortAnswerAsync(int questionId, string userAnswer);
+        Task<(bool IsCorrect, string Explanation)> EvaluateUserShortAnswerAsync(int questionId, string userAnswer);
         Task RecordAnswerAsync(int questionId, bool isCorrect);
         Task<List<Question>> GetWeightedQuestionsAsync(int topicId, int count, QuestionType? type = null);
         Task DeleteQuestionsForNoteAsync(int noteId);

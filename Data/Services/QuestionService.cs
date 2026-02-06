@@ -260,7 +260,7 @@ namespace Data.Services
             return questions;
         }
 
-        public async Task<bool> EvaluateUserShortAnswerAsync(int questionId, string userAnswer)
+        public async Task<(bool IsCorrect, string Explanation)> EvaluateUserShortAnswerAsync(int questionId, string userAnswer)
         {
             var userId = _authService.GetCurrentUserId();
 
@@ -286,17 +286,20 @@ namespace Data.Services
                 throw new InvalidOperationException("A kérdésnek nincs helyes válasza definiálva.");
             }
 
+            // Itt kéred le a jegyzet tartalmát (EZ MÁR MEGVOLT, CSAK ELLENŐRIZD)
             var sourceNote = await _unitOfWork.Notes.GetByIdAsync(question.SourceNoteId ?? 0);
             string context = sourceNote?.Content ?? string.Empty;
 
-            bool isCorrect = await _questionGeneratorService.EvaluateAnswerAsync(
+            // ITT A VÁLTOZÁS: Átadjuk a context-et a GeminiService-nek
+            var result = await _questionGeneratorService.EvaluateAnswerAsync(
                 question.Text,
                 userAnswer,
                 correctAnswer.SampleAnswer ?? correctAnswer.Text,
-                _modelName
+                context,        // <--- ÚJ: Context átadása
+                _modelName      // modelNameOverride
             );
 
-            return isCorrect;
+            return result;
         }
 
         public async Task<IEnumerable<Question>> GetQuestionsByTopicIdAsync(int topicId)

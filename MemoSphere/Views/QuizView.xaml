@@ -3,14 +3,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="clr-namespace:WPF.Utilities"
              xmlns:utilities="clr-namespace:WPF.Utilities"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              Background="White">
     <UserControl.Resources>
-        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:BoolToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:InverseBoolConverter x:Key="InverseBoolConverter"/>
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:StringOrMathConverter x:Key="StringOrMathConverter"/>
     </UserControl.Resources>
-
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -18,7 +18,6 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-
         <Grid Grid.Row="0" Margin="0,0,0,20">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -29,40 +28,39 @@
                 <TextBlock Text="{Binding RemainingTimeText}" FontSize="16" Foreground="DarkRed"/>
             </StackPanel>
         </Grid>
-
         <Border Grid.Row="1"
                 Background="LightGreen"
                 Padding="15"
                 CornerRadius="5"
                 Margin="0,0,0,20"
-                Visibility="{Binding IsQuizFinished,Converter={StaticResource BooleanToVisibilityConverter}}">
+                Visibility="{Binding IsQuizFinished, Converter={StaticResource BooleanToVisibilityConverter}}">
             <TextBlock Text="{Binding ResultText}"
                        FontSize="18"
                        FontWeight="Bold"
                        HorizontalAlignment="Center"/>
         </Border>
-
         <Border Grid.Row="2"
                 BorderBrush="LightGray"
-                BorderThickness="2"
-                Padding="20"
+                BorderThickness="1"
+                Padding="0"
                 CornerRadius="8"
                 Background="WhiteSmoke">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
                 <StackPanel DataContext="{Binding CurrentItem}">
                     <wv2:WebView2 x:Name="QuestionWebView"
-                              MinHeight="100"
-                              MaxHeight="250"
-                              Margin="0,0,0,20"
-                              utilities:WebViewHelper.HtmlSource="{Binding Question.Text}"/>    
-
+                                  MinHeight="100"
+                                  utilities:WebViewHelper.HtmlSource="{Binding Question.Text}"
+                                  DefaultBackgroundColor="Transparent"
+                                  Margin="0,0,0,30"/>
                     <ListBox ItemsSource="{Binding AnswerOptions}"
-                             SelectedItem="{Binding SelectedAnswer,Mode=TwoWay}"
+                             SelectedItem="{Binding SelectedAnswer, Mode=TwoWay}"
                              BorderThickness="0"
                              Background="Transparent"
-                             IsEnabled="{Binding IsAnswerSubmitted,Converter={StaticResource InverseBoolConverter}}"
+                             IsEnabled="{Binding IsAnswerSubmitted, Converter={StaticResource InverseBoolConverter}}"
                              SelectionMode="Single"
-                             HorizontalContentAlignment="Stretch">
+                             HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled">
                         <ListBox.Style>
                             <Style TargetType="ListBox">
                                 <Setter Property="Visibility" Value="Visible"/>
@@ -73,7 +71,6 @@
                                 </Style.Triggers>
                             </Style>
                         </ListBox.Style>
-
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
                                 <Setter Property="Padding" Value="0"/>
@@ -85,15 +82,15 @@
                                     </Trigger>
                                     <MultiDataTrigger>
                                         <MultiDataTrigger.Conditions>
-                                            <Condition Binding="{Binding Path=DataContext.IsAnswerSubmitted,RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True"/>
+                                            <Condition Binding="{Binding Path=DataContext.IsAnswerSubmitted, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True"/>
                                             <Condition Binding="{Binding IsCorrect}" Value="True"/>
                                         </MultiDataTrigger.Conditions>
                                         <Setter Property="Background" Value="LightGreen"/>
                                     </MultiDataTrigger>
                                     <MultiDataTrigger>
                                         <MultiDataTrigger.Conditions>
-                                            <Condition Binding="{Binding Path=DataContext.IsAnswerSubmitted,RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True"/>
-                                            <Condition Binding="{Binding Path=IsSelected,RelativeSource={RelativeSource Self}}" Value="True"/>
+                                            <Condition Binding="{Binding Path=DataContext.IsAnswerSubmitted, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="True"/>
+                                            <Condition Binding="{Binding Path=IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
                                             <Condition Binding="{Binding IsCorrect}" Value="False"/>
                                         </MultiDataTrigger.Conditions>
                                         <Setter Property="Background" Value="LightPink"/>
@@ -101,31 +98,35 @@
                                 </Style.Triggers>
                             </Style>
                         </ListBox.ItemContainerStyle>
-
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Padding="10"
-                                        Background="{Binding RelativeSource={RelativeSource FindAncestor,AncestorType={x:Type ListBoxItem}},Path=Background}"
+                                <Border Padding="12"
+                                        Background="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListBoxItem}}, Path=Background}"
                                         BorderBrush="LightGray"
                                         BorderThickness="1"
                                         CornerRadius="5"
                                         Cursor="Hand">
-                                    <TextBlock Text="{Binding Text}"
-                                               FontSize="16"
-                                               TextWrapping="Wrap"/>
+                                    <ContentPresenter Content="{Binding Text, Converter={StaticResource StringOrMathConverter}}">
+                                        <ContentPresenter.Resources>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontSize" Value="16"/>
+                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                            </Style>
+                                        </ContentPresenter.Resources>
+                                    </ContentPresenter>
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-
-                    <TextBox Text="{Binding UserAnswerText,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                    <TextBox Text="{Binding UserAnswerText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              FontSize="16"
                              Padding="10"
-                             MinHeight="60"
+                             MinHeight="80"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto"
-                             IsEnabled="{Binding IsAnswerSubmitted,Converter={StaticResource InverseBoolConverter}}">
+                             IsEnabled="{Binding IsAnswerSubmitted, Converter={StaticResource InverseBoolConverter}}"
+                             Margin="0,10,0,0">
                         <TextBox.Style>
                             <Style TargetType="TextBox">
                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -153,13 +154,10 @@
                             </Style>
                         </TextBox.Style>
                     </TextBox>
-
-                    <Border Padding="10"
-                            Background="LightYellow"
-                            BorderBrush="Orange"
-                            BorderThickness="1"
-                            CornerRadius="5"
-                            Margin="0,15,0,0">
+                    <Border Padding="15"
+                            CornerRadius="8"
+                            Margin="0,15,0,0"
+                            BorderThickness="1">
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -168,45 +166,76 @@
                                         <MultiDataTrigger.Conditions>
                                             <Condition Binding="{Binding IsShortAnswer}" Value="True"/>
                                             <Condition Binding="{Binding IsAnswerSubmitted}" Value="True"/>
-                                            <Condition Binding="{Binding IsCorrect}" Value="False"/>
                                         </MultiDataTrigger.Conditions>
                                         <Setter Property="Visibility" Value="Visible"/>
+                                    </MultiDataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsShortAnswer}" Value="True"/>
+                                            <Condition Binding="{Binding IsAnswerSubmitted}" Value="True"/>
+                                            <Condition Binding="{Binding IsCorrect}" Value="True"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Background" Value="#F0FDF4"/>
+                                        <Setter Property="BorderBrush" Value="#22C55E"/>
+                                    </MultiDataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsShortAnswer}" Value="True"/>
+                                            <Condition Binding="{Binding IsAnswerSubmitted}" Value="True"/>
+                                            <Condition Binding="{Binding IsCorrect}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Background" Value="#FEFCE8"/>
+                                        <Setter Property="BorderBrush" Value="#EAB308"/>
                                     </MultiDataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Border.Style>
                         <StackPanel>
-                            <TextBlock Text="Helyes válasz:"
+                            <TextBlock Text="Értékelés:"
+                                       FontWeight="Bold"
+                                       FontSize="14"
+                                       Margin="0,0,0,4">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#15803D"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsCorrect}" Value="False">
+                                                <Setter Property="Foreground" Value="#B45309"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding EvaluationFeedback}"
+                                       FontSize="14"
+                                       TextWrapping="Wrap"
+                                       FontStyle="Italic"
+                                       Margin="0,0,0,12"/>
+                            <Separator Background="LightGray" Margin="0,0,0,8"/>
+                            <TextBlock Text="Helyes válasz (Minta):"
                                        FontWeight="Bold"
                                        Foreground="DarkGreen"
-                                       FontSize="14"/>
-
+                                       FontSize="13"/>
                             <TextBlock Text="{Binding SampleAnswer}"
                                        Foreground="Green"
                                        FontSize="14"
                                        TextWrapping="Wrap"
-                                       Margin="0,5,0,0"/>
+                                       Margin="0,2,0,0"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
             </ScrollViewer>
         </Border>
-
         <StackPanel Grid.Row="3"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Margin="0,20,0,0">
             <Button Content="✓ Válasz beküldése"
                     Command="{Binding SubmitAnswerCommand}"
-                    Width="160"
-                    Height="45"
-                    FontSize="14"
-                    FontWeight="Bold"
+                    Width="160" Height="45"
+                    FontSize="14" FontWeight="Bold"
                     Margin="0,0,10,0"
-                    Background="#4CAF50"
-                    Foreground="White"
-                    BorderThickness="0"
-                    Cursor="Hand">
+                    Background="#4CAF50" Foreground="White" BorderThickness="0" Cursor="Hand">
                 <Button.Style>
                     <Style TargetType="Button">
                         <Style.Triggers>
@@ -218,30 +247,18 @@
                     </Style>
                 </Button.Style>
             </Button>
-
             <Button Content="→ Következő"
                     Command="{Binding NavigateNextCommand}"
-                    Width="140"
-                    Height="45"
-                    FontSize="14"
-                    FontWeight="Bold"
+                    Width="140" Height="45"
+                    FontSize="14" FontWeight="Bold"
                     Margin="0,0,10,0"
-                    Background="#2196F3"
-                    Foreground="White"
-                    BorderThickness="0"
-                    Cursor="Hand"/>
-
+                    Background="#2196F3" Foreground="White" BorderThickness="0" Cursor="Hand"/>
             <Button Content="🔄 Újrakezdés"
                     Command="{Binding RestartQuizCommand}"
-                    Width="140"
-                    Height="45"
-                    FontSize="14"
-                    FontWeight="Bold"
-                    Background="#FF9800"
-                    Foreground="White"
-                    BorderThickness="0"
-                    Cursor="Hand"
-                    Visibility="{Binding IsQuizFinished,Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    Width="140" Height="45"
+                    FontSize="14" FontWeight="Bold"
+                    Background="#FF9800" Foreground="White" BorderThickness="0" Cursor="Hand"
+                    Visibility="{Binding IsQuizFinished, Converter={StaticResource BooleanToVisibilityConverter}}"/>
         </StackPanel>
     </Grid>
 </UserControl>

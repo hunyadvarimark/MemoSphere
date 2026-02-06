@@ -18,14 +18,16 @@ namespace WPF.ViewModels.Quiz
     {
         private readonly IQuizService _quizService;
         private readonly IQuestionService _questionService;
+        private readonly IActiveLearningService _activeLearningService;
         private readonly DispatcherTimer _timer;
 
         // --- Beállítások ---
-        private const int SecondsPerQuestion = 60; // 1 perc kérdésenként
-        private const int MaxQuestionsPerNoteQuiz = 10; // Max 10 kérdés egy jegyzet-kvízben
+        private const int SecondsPerStandardQuestion = 60; // 1 perc kérdésenként
+        private const int SecondsPerShortAnswerQuestion = 180; // 3 perc a kifejtősnél
+        private const int MaxQuestionsPerNoteQuiz = 10;
 
-        private readonly int _requiredQuestionCount = 10; // Témakörös kvíz célja
-        private readonly int _minRequiredQuestionCount = 3; // Minimum kérdésszám
+        private readonly int _requiredQuestionCount = 10;
+        private readonly int _minRequiredQuestionCount = 3;
 
         private bool _canStartQuiz = false;
 
@@ -35,7 +37,7 @@ namespace WPF.ViewModels.Quiz
         private bool _isQuizFinished = false;
         private int _correctAnswers;
 
-        // --- Tulajdonságok a Binding-hez ---
+        // --- Tulajdonságok ---
 
         public ObservableCollection<QuizItemViewModel> QuizItems
         {
@@ -94,15 +96,18 @@ namespace WPF.ViewModels.Quiz
         public ICommand RestartQuizCommand { get; }
         public RelayCommand CloseQuizCommand { get; }
 
-        // Esemény a kvíz bezárásához
         public event Action CloseRequested;
 
         // --- Konstruktor ---
 
-        public QuizViewModel(IQuizService quizService, IQuestionService questionService)
+        public QuizViewModel(
+            IQuizService quizService,
+            IQuestionService questionService,
+            IActiveLearningService activeLearningService)
         {
             _quizService = quizService ?? throw new ArgumentNullException(nameof(quizService));
             _questionService = questionService ?? throw new ArgumentNullException(nameof(questionService));
+            _activeLearningService = activeLearningService ?? throw new ArgumentNullException(nameof(activeLearningService));
 
             LoadQuizCommand = new AsyncCommand<List<int>>(LoadQuizAsync, CanLoadQuiz);
             SubmitAnswerCommand = new AsyncCommand<object>(SubmitAnswerAsync, CanSubmitAnswer);
@@ -111,7 +116,6 @@ namespace WPF.ViewModels.Quiz
             CloseQuizCommand = new RelayCommand(_ => CloseQuiz());
             LoadQuizFromNoteCommand = new AsyncCommand<int>(LoadQuizFromNoteAsync, CanLoadQuizFromNote);
 
-            // Kezdeti érték (csak placeholder, a LoadQuiz állítja be)
             _secondsRemaining = 0;
             OnPropertyChanged(nameof(RemainingTimeText));
 
@@ -120,7 +124,7 @@ namespace WPF.ViewModels.Quiz
             _timer.Tick += Timer_Tick;
         }
 
-        // --- Kvíz Folyamat Metódusok ---
+        // --- Kvíz Folyamat ---
 
         private async Task LoadQuizAsync(List<int> topicIds)
         {
@@ -175,7 +179,6 @@ namespace WPF.ViewModels.Quiz
                     return;
                 }
 
-                // ✅ Véletlenszerű kiválasztás és limitálás (Max 10 kérdés)
                 var random = new Random();
                 var selectedQuestions = allQuestions
                     .OrderBy(x => random.Next())
@@ -196,13 +199,12 @@ namespace WPF.ViewModels.Quiz
             }
         }
 
-        // Közös indítási logika (Dinamikus idővel)
         private void StartQuizLogic()
         {
             _currentQuestionIndex = 0;
 
-            // ✅ Dinamikus időszámítás: Kérdések száma * 60 másodperc
-            _secondsRemaining = QuizItems.Count * SecondsPerQuestion;
+            _secondsRemaining = QuizItems.Sum(item =>
+                item.IsShortAnswer ? SecondsPerShortAnswerQuestion : SecondsPerStandardQuestion);
 
             IsQuizFinished = false;
             CorrectAnswers = 0;
@@ -237,25 +239,28 @@ namespace WPF.ViewModels.Quiz
         {
             if (CurrentItem == null || IsQuizFinished) return;
 
-            bool isCorrect = false;
+            bool calculatedIsCorrect = false;
 
             if (CurrentItem.IsShortAnswer)
             {
                 IsEvaluating = true;
                 try
                 {
-                    isCorrect = await _questionService.EvaluateUserShortAnswerAsync(
+                    var evalResult = await _questionService.EvaluateUserShortAnswerAsync(
                         CurrentItem.Question.Id,
                         CurrentItem.UserAnswerText
                     );
 
-                    CurrentItem.SetLLMEvaluationResult(isCorrect);
+                    calculatedIsCorrect = evalResult.IsCorrect;
+                    string explanation = evalResult.Explanation;
+
+                    CurrentItem.SetLLMEvaluationResult(calculatedIsCorrect, explanation);
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Hiba a válasz kiértékelése során: {ex.Message}");
-                    CurrentItem.SetLLMEvaluationResult(false);
-                    isCorrect = false;
+                    CurrentItem.SetLLMEvaluationResult(false, "Hiba történt a kiértékelés során.");
+                    calculatedIsCorrect = false;
                 }
                 finally
                 {
@@ -264,17 +269,19 @@ namespace WPF.ViewModels.Quiz
             }
             else
             {
-                isCorrect = CurrentItem.SelectedAnswer?.IsCorrect ?? false;
+                calculatedIsCorrect = CurrentItem.SelectedAnswer?.IsCorrect ?? false;
             }
 
             CurrentItem.IsAnswerSubmitted = true;
+
+            // Statisztika rögzítése
             try
             {
                 await _questionService.RecordAnswerAsync(
                     questionId: CurrentItem.Question.Id,
-                    isCorrect: isCorrect
+                    isCorrect: calculatedIsCorrect
                 );
-                Debug.WriteLine($"✅ Statisztika rögzítve: QuestionId={CurrentItem.Question.Id}, IsCorrect={isCorrect}");
+                Debug.WriteLine($"✅ Statisztika rögzítve: QuestionId={CurrentItem.Question.Id}, IsCorrect={calculatedIsCorrect}");
             }
             catch (Exception ex)
             {
@@ -306,13 +313,11 @@ namespace WPF.ViewModels.Quiz
         {
             _timer.Stop();
 
-            // Alaphelyzetbe állítjuk az összes kérdést
             foreach (var item in QuizItems)
             {
                 item.Reset();
             }
 
-            // Újrakeverjük a válaszokat
             foreach (var item in QuizItems)
             {
                 var random = new Random();
@@ -324,7 +329,7 @@ namespace WPF.ViewModels.Quiz
                 }
             }
 
-            StartQuizLogic(); // Újraindítjuk a logikát a dinamikus idővel
+            StartQuizLogic();
         }
 
         private void RaiseCommandsCanExecuteChanged()
@@ -356,7 +361,7 @@ namespace WPF.ViewModels.Quiz
             }
         }
 
-        private void EndQuiz()
+        private async void EndQuiz()
         {
             _timer.Stop();
 
@@ -368,6 +373,8 @@ namespace WPF.ViewModels.Quiz
             IsQuizFinished = true;
             CorrectAnswers = QuizItems.Count(item => item.IsCorrect);
 
+            await UpdateAllTopicsProgressAsync();
+
             OnPropertyChanged(nameof(StatusText));
             OnPropertyChanged(nameof(RemainingTimeText));
             OnPropertyChanged(nameof(ResultText));
@@ -376,6 +383,49 @@ namespace WPF.ViewModels.Quiz
             OnPropertyChanged(nameof(IsCurrentQuestionAnswered));
 
             RaiseCommandsCanExecuteChanged();
+        }
+
+        private async Task UpdateAllTopicsProgressAsync()
+        {
+            try
+            {
+                // Csoportosítjuk a kérdéseket topic szerint
+                var topicGroups = QuizItems
+                    .Where(item => item.IsAnswerSubmitted) // Csak a megválaszolt kérdések
+                    .GroupBy(item => item.Question.TopicId)
+                    .ToList();
+
+                Debug.WriteLine($"📊 Frissítés {topicGroups.Count} topic-ra");
+
+                foreach (var topicGroup in topicGroups)
+                {
+                    int topicId = topicGroup.Key;
+
+                    // Csak a helyes válaszokat számoljuk a haladáshoz
+                    var correctAnswers = topicGroup.Count(item => item.IsCorrect);
+
+                    Debug.WriteLine($"📚 Topic {topicId}: {correctAnswers} helyes válasz {topicGroup.Count()}-ból");
+
+                    // Minden helyes válaszért frissítjük a haladást
+                    for (int i = 0; i < correctAnswers; i++)
+                    {
+                        try
+                        {
+                            await _activeLearningService.UpdateProgressAsync(topicId, isCorrect: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"⚠️ Hiba a topic {topicId} haladásának frissítésekor: {ex.Message}");
+                        }
+                    }
+
+                    Debug.WriteLine($"✅ Topic {topicId} haladása frissítve!");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"❌ Hiba az aktív tanulási haladás frissítésekor: {ex.Message}");
+            }
         }
 
         private void CloseQuiz()
@@ -395,7 +445,6 @@ namespace WPF.ViewModels.Quiz
             _correctAnswers = 0;
             _isEvaluating = false;
 
-            // Frissítjük a UI-t
             OnPropertyChanged(nameof(QuizItems));
             OnPropertyChanged(nameof(CurrentItem));
             OnPropertyChanged(nameof(StatusText));
@@ -406,49 +455,30 @@ namespace WPF.ViewModels.Quiz
 
             RaiseCommandsCanExecuteChanged();
         }
+
         public async Task ValidateTopicsForQuizAsync(List<int> topicIds)
         {
             System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
             System.Diagnostics.Debug.WriteLine("🔍 QuizVM.ValidateTopicsForQuizAsync STARTED");
-            System.Diagnostics.Debug.WriteLine($"📥 TopicIds: {string.Join(", ", topicIds ?? new List<int>())}");
 
             if (topicIds == null || !topicIds.Any())
             {
-                System.Diagnostics.Debug.WriteLine("⚠️ No topic IDs provided");
                 CanStartQuiz = false;
-                System.Diagnostics.Debug.WriteLine($"✅ CanStartQuiz set to: {CanStartQuiz}");
-                System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
             }
             else
             {
                 try
                 {
-                    System.Diagnostics.Debug.WriteLine("🔍 Calling _quizService.GetQuestionCountForTopicsAsync...");
-
                     var questionCount = await _quizService.GetQuestionCountForTopicsAsync(topicIds);
-
-                    System.Diagnostics.Debug.WriteLine($"📊 Question count returned: {questionCount}");
-                    System.Diagnostics.Debug.WriteLine($"📊 Required count: {_requiredQuestionCount}");
-
-                    var oldValue = CanStartQuiz;
                     CanStartQuiz = questionCount >= _minRequiredQuestionCount;
-
-                    System.Diagnostics.Debug.WriteLine($"✅ CanStartQuiz: {oldValue} → {CanStartQuiz}");
-                    System.Diagnostics.Debug.WriteLine($"🔔 Raising LoadQuizCommand.CanExecuteChanged");
-
                     LoadQuizCommand.RaiseCanExecuteChanged();
-
-                    System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"❌ ERROR in ValidateTopicsForQuizAsync: {ex.Message}");
-                    System.Diagnostics.Debug.WriteLine($"StackTrace: {ex.StackTrace}");
                     CanStartQuiz = false;
-                    System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
                 }
             }
         }
-
     }
 }

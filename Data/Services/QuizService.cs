@@ -8,19 +8,18 @@ namespace Core.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IAuthService _authService;
-        private readonly IQuestionService _questionService; // ÚJ
+        private readonly IQuestionService _questionService;
 
         public QuizService(
             IUnitOfWork unitOfWork,
             IAuthService authService,
-            IQuestionService questionService) // ÚJ
+            IQuestionService questionService)
         {
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _authService = authService;
-            _questionService = questionService ?? throw new ArgumentNullException(nameof(questionService)); // ÚJ
+            _questionService = questionService ?? throw new ArgumentNullException(nameof(questionService));
         }
 
-        // ÚJ METÓDUS - Súlyozott kérdések lekérése több témából
         public async Task<List<Question>> GetRandomQuestionsForQuizAsync(List<int> topicIds, int count)
         {
             var userId = _authService.GetCurrentUserId();

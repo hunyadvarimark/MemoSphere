@@ -1,5 +1,4 @@
-﻿// WPF/ViewModels/Dashboard/ActiveTopicDisplayViewModel.cs
-using WPF.Utilities;
+﻿using WPF.Utilities;
 
 namespace WPF.ViewModels.Dashboard
 {

@@ -216,27 +216,53 @@ Ne írj semmit mást, csak a formázott szöveget!
             var chunks = new List<string>();
             var paragraphs = Regex.Split(text, @"\n\n+");
             var currentChunk = new StringBuilder();
+
+            const int OverlapSize = 200;
+
             foreach (var para in paragraphs)
             {
                 var trimmed = para.Trim();
                 if (string.IsNullOrEmpty(trimmed))
                     continue;
+
                 if (currentChunk.Length + trimmed.Length + 2 > maxChunkSize && currentChunk.Length > 0)
                 {
-                    chunks.Add(currentChunk.ToString().Trim());
+                    string fullContent = currentChunk.ToString().Trim();
+                    chunks.Add(fullContent);
+
                     currentChunk.Clear();
+
+                    if (fullContent.Length > OverlapSize)
+                    {
+                        string rawOverlap = fullContent.Substring(fullContent.Length - OverlapSize);
+
+                        int spaceIndex = rawOverlap.IndexOf(' ');
+
+                        if (spaceIndex > 0 && spaceIndex < rawOverlap.Length - 1)
+                        {
+                            string cleanOverlap = rawOverlap.Substring(spaceIndex + 1);
+
+                            currentChunk.AppendLine(cleanOverlap);
+                            currentChunk.AppendLine();
+                        }
+                    }
                 }
+
                 currentChunk.AppendLine(trimmed);
                 currentChunk.AppendLine();
             }
+
             if (currentChunk.Length > 0)
             {
                 chunks.Add(currentChunk.ToString().Trim());
             }
+
+            // Fallback: Ha egyetlen bekezdés önmagában nagyobb mint a limit
             if (chunks.Count == 1 && chunks[0].Length > maxChunkSize)
             {
                 return SplitBySentences(chunks[0], maxChunkSize);
             }
+
             return chunks;
         }
 
