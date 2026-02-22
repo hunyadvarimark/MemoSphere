@@ -13,5 +13,6 @@ namespace Core.Interfaces.Services
         Task RecordAnswerAsync(int questionId, bool isCorrect);
         Task<List<Question>> GetWeightedQuestionsAsync(int topicId, int count, QuestionType? type = null);
         Task DeleteQuestionsForNoteAsync(int noteId);
+        Task SaveQuestionsAsync(IEnumerable<Question> questions);
     }
 }

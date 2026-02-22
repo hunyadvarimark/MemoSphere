@@ -15,6 +15,7 @@
         <converters:BoolToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter"/>
         <converters:RadioButtonCheckedConverter x:Key="RadioButtonCheckedConverter"/>
+        <converters:QuestionTypeToVisibilityConverter x:Key="QuestionTypeToVisibilityConverter"/>
 
         <!-- Modern Icon Rail Button Style -->
         <Style x:Key="IconRailButton" TargetType="RadioButton">
@@ -343,6 +344,19 @@
                         <DropShadowEffect BlurRadius="60" Direction="270" ShadowDepth="15" Opacity="0.4"/>
                     </Border.Effect>
                     <views:QuizView DataContext="{Binding QuizVM}"/>
+                </Border>
+            </Grid>
+
+            <!--Question Edit Modal-->
+            <Grid Grid.RowSpan="2"
+                  Visibility="{Binding IsEditingQuestion, Converter={StaticResource BooleanToVisibilityConverter}}"
+                  Background="#CC000000"
+                  Panel.ZIndex="100">
+                <Border Width="600" Background="White" CornerRadius="20" Padding="32" VerticalAlignment="Center">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="50" Direction="270" ShadowDepth="10" Opacity="0.3"/>
+                    </Border.Effect>
+                    <views:QuestionDetailView DataContext="{Binding QuestionDetailVM}" />
                 </Border>
             </Grid>
 

@@ -4,46 +4,85 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Core.Enums;assembly=MemoSphere.Core"
-             mc:Ignorable="d" 
-             d:DesignHeight="400" d:DesignWidth="500">
-    <StackPanel Margin="20">
-        <TextBlock Text="Kérdés Szerkesztése" FontWeight="Bold" FontSize="18" Margin="0,0,0,15"/>
+             xmlns:converters="clr-namespace:WPF.Utilities" 
+             mc:Ignorable="d" d:DesignWidth="500">
 
-        <Label Content="Kérdés szövege:"/>
-        <TextBox Text="{Binding QuestionText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" Padding="5"/>
+    <UserControl.Resources>
+        <converters:QuestionTypeToVisibilityConverter x:Key="QuestionTypeToVisibilityConverter"/>
+        <converters:BoolToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:InvertedBoolToVisibilityConverter x:Key="InvertedBooleanToVisibilityConverter"/>
+    </UserControl.Resources>
 
-        <Label Content="Típus:"/>
-        <ComboBox SelectedItem="{Binding QuestionType}" Margin="0,0,0,10">
+    <StackPanel Margin="10">
+        <TextBlock FontSize="22" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,20">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                    <Setter Property="Text" Value="Kérdés szerkesztése"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsNewQuestion}" Value="True">
+                            <Setter Property="Text" Value="Új kérdés hozzáadása"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+
+        <TextBlock Text="Kérdés szövege" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,0,5"/>
+        <TextBox Text="{Binding QuestionText, UpdateSourceTrigger=PropertyChanged}" 
+                 MinHeight="80" TextWrapping="Wrap" AcceptsReturn="True" Padding="10" Margin="0,0,0,20"/>
+
+        <TextBlock Text="Kérdés típusa" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,0,5"/>
+
+        <ComboBox SelectedItem="{Binding QuestionType}" 
+                  Visibility="{Binding IsNewQuestion, Converter={StaticResource BooleanToVisibilityConverter}}"
+                  Margin="0,0,0,20" Padding="8">
             <ComboBox.Items>
-                <ComboBoxItem Content="MultipleChoice" Tag="{x:Static local:QuestionType.MultipleChoice}"/>
-                <ComboBoxItem Content="TrueFalse" Tag="{x:Static local:QuestionType.TrueFalse}"/>
-                <ComboBoxItem Content="Open" Tag="{x:Static local:QuestionType.ShortAnswer}"/>
+                <ComboBoxItem Content="Multiple Choice" Tag="{x:Static local:QuestionType.MultipleChoice}"/>
+                <ComboBoxItem Content="True / False" Tag="{x:Static local:QuestionType.TrueFalse}"/>
+                <ComboBoxItem Content="Short Answer" Tag="{x:Static local:QuestionType.ShortAnswer}"/>
             </ComboBox.Items>
         </ComboBox>
 
-        <Label Content="Helyes válasz:"/>
-        <TextBox Text="{Binding CorrectAnswer, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" Padding="5"/>
+        <Border Background="#F1F5F9" Padding="10" CornerRadius="8" Margin="0,0,0,20"
+                Visibility="{Binding IsNewQuestion, Converter={StaticResource InvertedBooleanToVisibilityConverter}}">
+            <TextBlock Text="{Binding QuestionType}" FontSize="14" FontWeight="Medium" Foreground="#475569"/>
+        </Border>
 
-        <Label Content="Opciók (csak MultipleChoice esetén):"/>
-        <ListBox ItemsSource="{Binding Options}" Margin="0,0,0,10">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <TextBox Text="{Binding}" />
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        <StackPanel Visibility="{Binding QuestionType, Converter={StaticResource QuestionTypeToVisibilityConverter}, ConverterParameter=MultipleChoice}">
+            <TextBlock Text="Rossz válaszlehetőségek" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,0,5"/>
+            <ItemsControl ItemsSource="{Binding Options}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" Padding="8"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
 
-        <Button Content="Mentés" Command="{Binding SaveQuestionCommand}" Padding="10" Margin="0,10,0,10"/>
+        <TextBlock Text="Helyes válasz" FontWeight="SemiBold" Foreground="#64748B" Margin="0,10,0,5"/>
 
-        <!-- ÚJ: Kérdésgenerálás gomb (teszteléshez) -->
-        <Label Content="Kérdésgenerálás (teszt):"/>
-        <ComboBox x:Name="GenTypeCombo" SelectedItem="{Binding GenQuestionType}" Margin="0,0,0,10">
-            <ComboBox.Items>
-                <ComboBoxItem Content="MultipleChoice" Tag="{x:Static local:QuestionType.MultipleChoice}"/>
-                <ComboBoxItem Content="TrueFalse" Tag="{x:Static local:QuestionType.TrueFalse}"/>
-                <ComboBoxItem Content="Open" Tag="{x:Static local:QuestionType.ShortAnswer}"/>
-            </ComboBox.Items>
+        <TextBox Text="{Binding CorrectAnswer, UpdateSourceTrigger=PropertyChanged}" 
+                 Visibility="{Binding QuestionType, Converter={StaticResource QuestionTypeToVisibilityConverter}, ConverterParameter=NotTrueFalse}" 
+                 Padding="10"/>
+
+        <ComboBox SelectedItem="{Binding CorrectAnswer}" 
+                  Visibility="{Binding QuestionType, Converter={StaticResource QuestionTypeToVisibilityConverter}, ConverterParameter=TrueFalse}"
+                  Padding="8">
+            <ComboBoxItem Content="Igaz"/>
+            <ComboBoxItem Content="Hamis"/>
         </ComboBox>
-        <Button Content="Generálj Kérdéseket" Command="{Binding GenerateQuestionsCommand}" CommandParameter="{Binding ElementName=GenTypeCombo, Path=SelectedItem.Tag}" Padding="10" Margin="0,10,0,10"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,30,0,0">
+            <Button Content="Mégse" Command="{Binding CancelCommand}" 
+                    Background="Transparent" Foreground="#64748B" BorderThickness="0" Margin="0,0,15,0" Cursor="Hand"/>
+            <Button Content="Mentés" Command="{Binding SaveQuestionCommand}" 
+                    Width="140" Height="45" Background="#6366F1" Foreground="White" FontWeight="Bold">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="10"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+        </StackPanel>
     </StackPanel>
 </UserControl>

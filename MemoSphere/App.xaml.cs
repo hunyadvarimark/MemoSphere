@@ -22,7 +22,7 @@ namespace MemoSphere.WPF
 {
     public partial class App : Application
     {
-        private readonly IHost _host;
+        public readonly IHost _host;
 
         public App()
         {
@@ -157,8 +157,9 @@ namespace MemoSphere.WPF
                         var subjectsVM = provider.GetRequiredService<SubjectListViewModel>();
                         var topicsVM = provider.GetRequiredService<TopicListViewModel>();
                         var notesVM = provider.GetRequiredService<NoteListViewModel>();
+                        var questionService = provider.GetRequiredService<IQuestionService>();
 
-                        return new CrudOperationHandler(subjectService, topicService, noteService, subjectsVM, topicsVM, notesVM);
+                        return new CrudOperationHandler(subjectService, topicService, noteService, questionService, subjectsVM, topicsVM, notesVM);
                     });
 
                     services.AddSingleton<MainViewModel>();

@@ -61,6 +61,11 @@
                     <Setter Property="Background" Value="#F8FAFC"/>
                     <Setter Property="BorderBrush" Value="#C5CAE9"/>
                 </Trigger>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="#E0E7FF"/>
+                    <Setter Property="BorderBrush" Value="#6366F1"/>
+                    <Setter Property="BorderThickness" Value="4,1,1,1"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 
@@ -653,6 +658,8 @@
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding IsActive}" Value="True">
                                                         <Setter Property="Background" Value="White"/>
+                                                        <Setter Property="BorderBrush" Value="#6366F1"/>
+                                                        <Setter Property="BorderThickness" Value="1,4,1,0"/>
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding IsActive}" Value="False">
                                                         <Setter Property="Background" Value="#F1F5F9"/>

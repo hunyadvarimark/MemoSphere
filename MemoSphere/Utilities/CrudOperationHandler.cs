@@ -1,5 +1,6 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
+using Data.Services;
 using System.Windows;
 using WPF.ViewModels.Notes;
 using WPF.ViewModels.Subjects;
@@ -10,6 +11,7 @@ public class CrudOperationHandler
     private readonly ISubjectService _subjectService;
     private readonly ITopicService _topicService;
     private readonly INoteService _noteService;
+    private readonly IQuestionService _questionService;
 
     private readonly SubjectListViewModel _subjectsVM;
     private readonly TopicListViewModel _topicsVM;
@@ -19,6 +21,7 @@ public class CrudOperationHandler
         ISubjectService subjectService,
         ITopicService topicService,
         INoteService noteService,
+        IQuestionService questionService,
         SubjectListViewModel subjectsVM,
         TopicListViewModel topicsVM,
         NoteListViewModel notesVM)
@@ -26,12 +29,12 @@ public class CrudOperationHandler
         _subjectService = subjectService;
         _topicService = topicService;
         _noteService = noteService;
+        _questionService = questionService;
         _subjectsVM = subjectsVM;
         _topicsVM = topicsVM;
         _notesVM = notesVM;
     }
 
-    // ✅ EGYETLEN HELYEN KEZELJÜK A HIBÁKAT
     public async Task SaveSubjectAsync(Subject subject)
     {
         try
@@ -55,14 +58,12 @@ public class CrudOperationHandler
             // UI frissítés
             await _subjectsVM.LoadSubjectsAsync();
 
-            // Sikeres mentés visszajelzés (opcionális)
-            // MessageBox.Show("Tantárgy sikeresen mentve!", "Siker", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (InvalidOperationException ex)
         {
             // Duplikáció
             MessageBox.Show(ex.Message, "Figyelmeztetés", MessageBoxButton.OK, MessageBoxImage.Warning);
-            throw; // ✅ Továbbdobjuk, hogy a MainViewModel tudja, hogy sikertelen volt
+            throw;
         }
         catch (ArgumentException ex)
         {
@@ -211,6 +212,39 @@ public class CrudOperationHandler
         {
             MessageBox.Show($"Hiba a jegyzet törlése során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
             throw;
+        }
+    }
+    public async Task SaveQuestionAsync(Question question)
+    {
+        try
+        {
+            if (question == null) throw new ArgumentNullException(nameof(question));
+            await _questionService.SaveQuestionsAsync(new List<Question> { question });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Hiba a mentés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            throw;
+        }
+    }
+    public async Task<bool> DeleteQuestionAsync(int questionId)
+    {
+        try
+        {
+            var result = MessageBox.Show("Biztosan törölni szeretnéd ezt a kérdést?", "Kérdés törlése",
+                                        MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                await _questionService.DeleteQuestionAsync(questionId);
+                return true;
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Hiba a törlés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
         }
     }
 }

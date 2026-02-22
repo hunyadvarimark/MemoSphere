@@ -9,6 +9,7 @@
 
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        
 
         <Style x:Key="FloatingActionButton" TargetType="Button">
             <Setter Property="Width" Value="56"/>
@@ -499,6 +500,16 @@
                                                 <Run Text="kérdés"/>
                                             </TextBlock>
                                         </StackPanel>
+                                        <Button Command="{Binding AddQuestionCommand}"
+                                                Style="{StaticResource MaterialDesignFlatButton}"
+                                                Foreground="#6366F1"
+                                                Margin="20,0,0,0"
+                                                VerticalAlignment="Center"> 
+                                            <StackPanel Orientation="Horizontal">
+                                                <materialDesign:PackIcon Kind="Plus" Margin="0,0,4,0" Width="18" Height="18"/>
+                                                <TextBlock Text="Új kérdés" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
 
                                     <Button HorizontalAlignment="Right"
@@ -552,31 +563,55 @@
                                 </Grid>
 
                                 <ItemsControl ItemsSource="{Binding DistinctQuestions}"
-                                              Visibility="{Binding HasQuestions, Converter={StaticResource BooleanToVisibilityConverter}}">
+              Visibility="{Binding HasQuestions, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Background="#F8F9FA" 
-                                                    BorderBrush="#E2E8F0" 
-                                                    BorderThickness="1" 
-                                                    CornerRadius="12" 
-                                                    Padding="20" 
-                                                    Margin="0,0,0,12">
+                    BorderBrush="#E2E8F0" 
+                    BorderThickness="1" 
+                    CornerRadius="12" 
+                    Padding="20" 
+                    Margin="0,0,0,12">
                                                 <StackPanel>
-                                                    <TextBlock Text="{Binding Text}" 
-                                                             FontWeight="SemiBold" 
-                                                             FontSize="15" 
-                                                             Foreground="#1E293B" 
-                                                             TextWrapping="Wrap" 
-                                                             Margin="0,0,0,12"/>
+                                                    <Grid Margin="0,0,0,12">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding Text}" 
+                                                   FontWeight="SemiBold" 
+                                                   FontSize="15" 
+                                                   Foreground="#1E293B" 
+                                                   TextWrapping="Wrap"
+                                                   VerticalAlignment="Center"/>
+
+                                                        <Button Grid.Column="1"
+                                                                Command="{Binding DataContext.EditQuestionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                Style="{StaticResource IconButton}"
+                                                                Margin="8,0,0,0"
+                                                                ToolTip="Kérdés szerkesztése">
+                                                            <materialDesign:PackIcon Kind="Pencil" 
+                                                     Foreground="#6366F1" 
+                                                     Width="20" 
+                                                     Height="20"/>
+                                                        </Button>
+                                                        <Button Command="{Binding DataContext.DeleteQuestionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                Style="{StaticResource IconButton}"
+                                                                ToolTip="Törlés"
+                                                                Margin="8,0,0,0">
+                                                            <materialDesign:PackIcon Kind="Delete" Foreground="#EF4444" Width="20" Height="20"/>
+                                                        </Button>
+                                                    </Grid>
+
                                                     <ItemsControl ItemsSource="{Binding Answers}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <StackPanel Orientation="Horizontal" Margin="0,6">
-                                                                    <Border Width="8" 
-                                                                            Height="8"
-                                                                            CornerRadius="4"
-                                                                            Margin="0,0,10,0" 
-                                                                            VerticalAlignment="Center">
+                                                                    <Border Width="8" Height="8" CornerRadius="4" Margin="0,0,10,0" VerticalAlignment="Center">
                                                                         <Border.Style>
                                                                             <Style TargetType="Border">
                                                                                 <Setter Property="Background" Value="#6366F1"/>
@@ -588,9 +623,7 @@
                                                                             </Style>
                                                                         </Border.Style>
                                                                     </Border>
-                                                                    <TextBlock Text="{Binding Text, Mode=OneWay}"
-                                                                             TextWrapping="Wrap"
-                                                                             FontSize="14">
+                                                                    <TextBlock Text="{Binding Text, Mode=OneWay}" TextWrapping="Wrap" FontSize="14">
                                                                         <TextBlock.Style>
                                                                             <Style TargetType="TextBlock">
                                                                                 <Setter Property="Foreground" Value="#64748B"/>

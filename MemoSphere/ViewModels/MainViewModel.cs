@@ -31,6 +31,7 @@ namespace WPF.ViewModels
         private readonly IDocumentImportService _documentImportService;
         public QuizViewModel QuizVM { get; }
         public QuizTopicSelectionViewModel QuizSelectionVM { get; }
+        public QuestionDetailViewModel QuestionDetailVM { get; }
         public DashboardViewModel DashboardVM { get; }
         // List ViewModels
         public SubjectListViewModel SubjectsVM { get; }
@@ -89,6 +90,13 @@ namespace WPF.ViewModels
             set => SetProperty(ref _currentUserEmail, value);
         }
         // UI State
+        private bool _isEditingQuestion;
+        public bool IsEditingQuestion
+        {
+            get => _isEditingQuestion;
+            set => SetProperty(ref _isEditingQuestion, value);
+        }
+
         private bool _isDialogOpen;
         public bool IsDialogOpen
         {
@@ -156,6 +164,7 @@ namespace WPF.ViewModels
             TopicDetailViewModel topicDetailVM,
             DashboardViewModel dashboardVM,
             QuizTopicSelectionViewModel quizSelectionVM,
+            QuestionDetailViewModel questionDetailVM,
             HierarchyCoordinator hierarchyCoordinator,
             CrudOperationHandler crudHandler,
             INoteService noteService,
@@ -169,12 +178,13 @@ namespace WPF.ViewModels
             NotesVM = notesVM ?? throw new ArgumentNullException(nameof(notesVM));
             QuizVM = quizVM ?? throw new ArgumentNullException(nameof(quizVM));
             DashboardVM = dashboardVM ?? throw new ArgumentNullException(nameof(dashboardVM));
+            QuestionDetailVM = questionDetailVM ?? throw new ArgumentNullException(nameof(questionDetailVM));
             SubjectDetailVM = subjectDetailVM ?? throw new ArgumentNullException(nameof(subjectDetailVM));
             TopicDetailVM = topicDetailVM ?? throw new ArgumentNullException(nameof(topicDetailVM));
             QuizSelectionVM = quizSelectionVM ?? throw new ArgumentNullException(nameof(quizSelectionVM));
             QuizSelectionVM.Initialize(this);
-            
-            
+
+
             _hierarchyCoordinator = hierarchyCoordinator ?? throw new ArgumentNullException(nameof(hierarchyCoordinator));
             _crudHandler = crudHandler ?? throw new ArgumentNullException(nameof(crudHandler));
             _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
@@ -198,7 +208,8 @@ namespace WPF.ViewModels
             ToggleNoteListCommand = new RelayCommand(_ => IsNoteListVisible = !IsNoteListVisible);
             StartQuizCommand = new RelayCommand(
                 async _ => await OpenQuizSelectionModalAsync(),
-                _ => {
+                _ =>
+                {
                     var canExecute = SubjectsVM.SelectedSubject != null && !IsQuizActive;
                     return canExecute;
                 }
@@ -257,7 +268,7 @@ namespace WPF.ViewModels
                 return;
             }
             var questionListVM = new QuestionListViewModel(_questionService);
-            var noteTab = new NoteTabViewModel(note, _noteService, questionListVM, _documentImportService, this);
+            var noteTab = new NoteTabViewModel(note, _noteService, questionListVM, _documentImportService, this, _crudHandler);
             noteTab.CloseRequested += OnNoteTabCloseRequested;
             noteTab.NoteSaved += OnNoteTabSaved;
             noteTab.ActivateRequested += tab => ActiveNote = tab;
@@ -525,6 +536,18 @@ namespace WPF.ViewModels
                     await DashboardVM.LoadDashboardDataAsync();
                 }
             };
+            // Question save event
+            QuestionDetailVM.QuestionSavedRequested += async question =>
+            {
+                try
+                {
+                    await _crudHandler.SaveQuestionAsync(question);
+                    IsEditingQuestion = false;
+                    if (ActiveNote != null) await ActiveNote.RefreshQuestionsAsync();
+                }
+                catch { /* A hibát a CrudHandler már kiírta */ }
+            };
+            QuestionDetailVM.CancelRequested += () => IsEditingQuestion = false;
         }
         private async Task ValidateQuestionCountAsync()
         {
@@ -635,6 +658,22 @@ namespace WPF.ViewModels
             {
                 MessageBox.Show($"Hiba a kvíz-választó betöltésekor: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+        public void OpenQuestionEditor(Question? question, int topicId = 0, int noteId = 0)
+        {
+            if (question == null)
+            {
+                QuestionDetailVM.ResetState(topicId, noteId);
+                QuestionDetailVM.IsNewQuestion = true;
+            }
+            else
+            {
+                QuestionDetailVM.LoadQuestion(question);
+                QuestionDetailVM.TopicId = question.TopicId;
+                QuestionDetailVM.NoteId = question.SourceNoteId;
+                QuestionDetailVM.IsNewQuestion = false;
+            }
+            IsEditingQuestion = true;
         }
         public void AddNewNoteAndShowBrowser()
         {

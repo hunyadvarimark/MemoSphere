@@ -3,58 +3,54 @@ using Core.Enums;
 using Core.Interfaces.Services;
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Input;
 using WPF.Utilities;
 
 namespace WPF.ViewModels.Questions
 {
     public class QuestionDetailViewModel : BaseViewModel
     {
+        public class OptionWrapper : BaseViewModel
+        {
+            private string _text = string.Empty;
+            public string Text
+            {
+                get => _text;
+                set => SetProperty(ref _text, value);
+            }
+        }
+
         private readonly IQuestionService _questionService;
-        private Question _currentQuestion;
+        private Question? _currentQuestion;
         private string _questionText = string.Empty;
         private QuestionType _questionType;
         private string _correctAnswer = string.Empty;
-        private ObservableCollection<string> _options = new();
         private int _topicId;
+        private int? _noteId;
+        private bool _isNewQuestion;
+        private ObservableCollection<OptionWrapper> _options = new();
+
+        #region Properties
 
         public string QuestionText
         {
             get => _questionText;
-            set
-            {
-                if (SetProperty(ref _questionText, value))
-                {
-                    SaveQuestionCommand.RaiseCanExecuteChanged();
-                }
-            }
+            set { if (SetProperty(ref _questionText, value)) SaveQuestionCommand.RaiseCanExecuteChanged(); }
         }
 
         public QuestionType QuestionType
         {
             get => _questionType;
-            set
-            {
-                if (SetProperty(ref _questionType, value))
-                {
-                    OnQuestionTypeChanged();
-                    SaveQuestionCommand.RaiseCanExecuteChanged();
-                }
-            }
+            set { if (SetProperty(ref _questionType, value)) SaveQuestionCommand.RaiseCanExecuteChanged(); }
         }
 
         public string CorrectAnswer
         {
             get => _correctAnswer;
-            set
-            {
-                if (SetProperty(ref _correctAnswer, value))
-                {
-                    SaveQuestionCommand.RaiseCanExecuteChanged();
-                }
-            }
+            set { if (SetProperty(ref _correctAnswer, value)) SaveQuestionCommand.RaiseCanExecuteChanged(); }
         }
 
-        public ObservableCollection<string> Options
+        public ObservableCollection<OptionWrapper> Options
         {
             get => _options;
             set => SetProperty(ref _options, value);
@@ -63,65 +59,79 @@ namespace WPF.ViewModels.Questions
         public int TopicId
         {
             get => _topicId;
-            set
-            {
-                if (SetProperty(ref _topicId, value))
-                {
-                    SaveQuestionCommand.RaiseCanExecuteChanged();
-                    GenerateQuestionsCommand.RaiseCanExecuteChanged();
-                }
-            }
+            set { if (SetProperty(ref _topicId, value)) SaveQuestionCommand.RaiseCanExecuteChanged(); }
         }
+
+        public int? NoteId
+        {
+            get => _noteId;
+            set => SetProperty(ref _noteId, value);
+        }
+
+        public bool IsNewQuestion
+        {
+            get => _isNewQuestion;
+            set => SetProperty(ref _isNewQuestion, value);
+        }
+
+        #endregion
 
         public AsyncCommand<object> SaveQuestionCommand { get; }
         public AsyncCommand<QuestionType> GenerateQuestionsCommand { get; }
+        public ICommand CancelCommand { get; }
 
-        public event Action<Question> QuestionSavedRequested;
+        public event Action? CancelRequested;
+        public event Action<Question>? QuestionSavedRequested;
 
         public QuestionDetailViewModel(IQuestionService questionService)
         {
             _questionService = questionService;
-
             SaveQuestionCommand = new AsyncCommand<object>(SaveQuestionRequestedAsync, CanSaveQuestion);
             GenerateQuestionsCommand = new AsyncCommand<QuestionType>(GenerateQuestionsAsync, CanGenerateQuestions);
+            CancelCommand = new RelayCommand(_ => CancelRequested?.Invoke());
         }
 
-        public void ResetState(int topicId)
+        // ÚJ: Két paramétert vár, hogy a kérdés mindkét szülőhöz kötődjön
+        public void ResetState(int topicId, int noteId)
         {
             _currentQuestion = null;
+            IsNewQuestion = true;
             QuestionText = string.Empty;
             QuestionType = QuestionType.MultipleChoice;
             CorrectAnswer = string.Empty;
             Options.Clear();
+
+            // Alapból adjunk hozzá 3 üres opciót a kényelmesebb bevitelhez
+            Options.Add(new OptionWrapper());
+            Options.Add(new OptionWrapper());
+            Options.Add(new OptionWrapper());
+
             TopicId = topicId;
+            NoteId = noteId;
+
+            SaveQuestionCommand.RaiseCanExecuteChanged();
         }
 
         public void LoadQuestion(Question questionToEdit)
         {
             _currentQuestion = questionToEdit;
+            IsNewQuestion = false;
             QuestionText = questionToEdit?.Text ?? string.Empty;
             QuestionType = questionToEdit?.QuestionType ?? QuestionType.MultipleChoice;
             CorrectAnswer = questionToEdit?.Answers?.FirstOrDefault(a => a.IsCorrect)?.Text ?? string.Empty;
             TopicId = questionToEdit?.TopicId ?? 0;
+            NoteId = questionToEdit?.SourceNoteId; // Betöltjük a NoteId-t is
 
             Options.Clear();
             if (questionToEdit?.Answers != null)
             {
                 foreach (var answer in questionToEdit.Answers.Where(a => !a.IsCorrect))
                 {
-                    Options.Add(answer.Text);
+                    Options.Add(new OptionWrapper { Text = answer.Text });
                 }
             }
 
             SaveQuestionCommand.RaiseCanExecuteChanged();
-        }
-
-        private void OnQuestionTypeChanged()
-        {
-            if (QuestionType != QuestionType.MultipleChoice)
-            {
-                Options.Clear();
-            }
         }
 
         private bool CanSaveQuestion(object parameter)
@@ -132,7 +142,7 @@ namespace WPF.ViewModels.Questions
 
             if (QuestionType == QuestionType.MultipleChoice)
             {
-                return basicValid && Options.Count >= 2;
+                return basicValid && Options.Count(o => !string.IsNullOrWhiteSpace(o.Text)) >= 1;
             }
 
             return basicValid;
@@ -142,43 +152,49 @@ namespace WPF.ViewModels.Questions
         {
             if (!CanSaveQuestion(null)) return;
 
-            Question questionToSave = _currentQuestion ?? new Question { TopicId = TopicId };
+            Question questionToSave = _currentQuestion ?? new Question();
+
             questionToSave.Text = QuestionText;
             questionToSave.QuestionType = QuestionType;
-            questionToSave.Answers = new List<Answer>
+            questionToSave.TopicId = TopicId;
+            questionToSave.SourceNoteId = NoteId;
+
+            var answers = new List<Answer>
             {
-                new Answer { Text = CorrectAnswer, IsCorrect = true }
+                new Answer { Text = CorrectAnswer, IsCorrect = true, QuestionId = questionToSave.Id }
             };
 
             if (QuestionType == QuestionType.MultipleChoice)
             {
-                foreach (var option in Options)
+                foreach (var optionWrapper in Options)
                 {
-                    questionToSave.Answers.Add(new Answer { Text = option, IsCorrect = false });
+                    if (!string.IsNullOrWhiteSpace(optionWrapper.Text))
+                    {
+                        answers.Add(new Answer
+                        {
+                            Text = optionWrapper.Text,
+                            IsCorrect = false,
+                            QuestionId = questionToSave.Id
+                        });
+                    }
                 }
             }
 
+            questionToSave.Answers = answers;
             QuestionSavedRequested?.Invoke(questionToSave);
         }
 
-        private bool CanGenerateQuestions(QuestionType type)
-        {
-            return TopicId > 0;
-        }
+        private bool CanGenerateQuestions(QuestionType type) => TopicId > 0;
 
         private async Task GenerateQuestionsAsync(QuestionType type)
         {
             try
             {
                 bool success = await _questionService.GenerateAndSaveQuestionsAsync(TopicId, type);
-
                 if (success)
                 {
                     MessageBox.Show($"{type} típusú kérdések sikeresen generálva!", "Siker", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    MessageBox.Show("Nem sikerült kérdéseket generálni.", "Hiba", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    // Itt érdemes lenne egy eseményt dobni, hogy a UI frissüljön
                 }
             }
             catch (Exception ex)

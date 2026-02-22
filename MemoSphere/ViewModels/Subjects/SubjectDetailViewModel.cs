@@ -51,7 +51,6 @@ public class SubjectDetailViewModel : BaseViewModel
         return !string.IsNullOrWhiteSpace(SubjectTitle);
     }
 
-    // ✅ EGYSZERŰ - csak event kiváltás, NO try-catch!
     private Task SaveSubjectRequestedAsync(object parameter)
     {
         if (!CanSaveSubject(null))
@@ -61,7 +60,6 @@ public class SubjectDetailViewModel : BaseViewModel
         Subject subjectToSave = _currentSubject ?? new Subject();
         subjectToSave.Title = trimmedTitle;
 
-        // ✅ Event kiváltás - a MainViewModel fogja kezelni
         SubjectSavedRequested?.Invoke(subjectToSave);
 
         return Task.CompletedTask;

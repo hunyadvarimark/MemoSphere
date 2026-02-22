@@ -1,11 +1,11 @@
-﻿// MemoSphere.WPF.Views.LoginWindow.xaml.cs
-
-using Core.Interfaces.Services;
+﻿using Core.Interfaces.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Web.WebView2.Core;
 using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MemoSphere.WPF.Views
 {
@@ -39,7 +39,7 @@ namespace MemoSphere.WPF.Views
             {
                 HideError();
 
-                // 1. OAuth URL lekérése
+                
                 Debug.WriteLine("OAuth URL lekérése...");
                 var oauthUrl = await _authService.GetGoogleOAuthUrl();
                 Debug.WriteLine($"OAuth URL: {oauthUrl}");
@@ -50,7 +50,7 @@ namespace MemoSphere.WPF.Views
                     return;
                 }
 
-                // 2. WebView ablak létrehozása
+                
                 Debug.WriteLine("WebView ablak létrehozása...");
                 _webViewWindow = new Window
                 {
@@ -71,9 +71,9 @@ namespace MemoSphere.WPF.Views
                     _webViewWindow = null;
                 };
 
-                // 3. WebView inicializálás ELŐTT megjelenítjük az ablakot
+                
                 Debug.WriteLine("WebView ablak megjelenítése...");
-                _webViewWindow.Show(); // ShowDialog helyett Show, hogy ne blokkoljon
+                _webViewWindow.Show();
 
                 Debug.WriteLine("WebView inicializálása...");
                 try
@@ -113,13 +113,13 @@ namespace MemoSphere.WPF.Views
                     return;
                 }
 
-                // 4. Navigation event handler - figyeljük az URL változásokat
+               
                 webView.NavigationStarting += async (s, args) =>
                 {
                     var url = args.Uri;
                     Debug.WriteLine($"Navigation: {url}");
 
-                    // 5. Ellenőrizzük, hogy a mi egyedi callback URL-ünk-e
+                    
                     if (url.StartsWith("memosphere://auth/callback"))
                     {
                         Debug.WriteLine("Callback URL elkapva!");
@@ -138,7 +138,7 @@ namespace MemoSphere.WPF.Views
                             return;
                         }
 
-                        // 6. Tokenek kinyerése a fragment-ből
+                       
                         var parameters = System.Web.HttpUtility.ParseQueryString(fragment);
                         var accessToken = parameters["access_token"];
                         var refreshToken = parameters["refresh_token"];
@@ -155,7 +155,6 @@ namespace MemoSphere.WPF.Views
                             // Loading indikátor megjelenítése
                             Dispatcher.Invoke(() => ShowLoading(true));
 
-                            // 7. Session beállítása
                             Debug.WriteLine("Session beállítása...");
                             var success = await _authService.CompleteGoogleSignInAsync(accessToken, refreshToken);
 
@@ -164,17 +163,34 @@ namespace MemoSphere.WPF.Views
                             if (success)
                             {
                                 Debug.WriteLine("Sikeres bejelentkezés!");
+
+                                try
+                                {
+                                    
+                                    var app = (App)Application.Current;
+
+                                   
+                                    using (var scope = app._host.Services.CreateScope())
+                                    {
+                                        var activeService = scope.ServiceProvider.GetRequiredService<IActiveLearningService>();
+
+                                        
+                                        await activeService.CheckStreaksOnLoginAsync();
+                                        Debug.WriteLine("✅ Streakek ellenőrizve és frissítve.");
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"⚠️ Hiba a streak frissítésekor: {ex.Message}");
+                                }
+
+                               
                                 Dispatcher.Invoke(async () =>
                                 {
                                     await _mainWindow.LoadDataAsync();
                                     _mainWindow.Show();
                                     this.Close();
                                 });
-                            }
-                            else
-                            {
-                                Debug.WriteLine("Session beállítása sikertelen");
-                                Dispatcher.Invoke(() => ShowError("Hiba történt a bejelentkezés befejezésekor."));
                             }
                         }
                         else

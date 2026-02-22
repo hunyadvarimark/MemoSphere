@@ -126,28 +126,19 @@ namespace Data.Services
             Console.WriteLine($"║ Időpont: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
             Console.WriteLine($"╚═══════════════════════════════════════════════════════════");
 
-            if (!questionsToAdd.Any())
-            {
-                Console.WriteLine("Nem sikerült kérdéseket generálni.");
-                return false;
-            }
+            if (!questionsToAdd.Any()) return false;
 
-            using var context = _factory.CreateDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                context.Questions.AddRange(questionsToAdd);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                Console.WriteLine($"{questionsToAdd.Count} kérdés sikeresen elmentve (UserId: {userId})");
+                // Ahelyett, hogy itt context-eznénk, meghívjuk a saját metódusunkat
+                await SaveQuestionsAsync(questionsToAdd);
+                Console.WriteLine($"{questionsToAdd.Count} kérdés sikeresen elmentve.");
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Hiba a kérdések mentésekor: {ex.Message}");
-                await transaction.RollbackAsync();
-                throw;
+                Console.WriteLine($"Hiba a mentéskor: {ex.Message}");
+                return false;
             }
         }
 
@@ -525,6 +516,40 @@ namespace Data.Services
             {
                 Console.WriteLine($"ℹ️ Nincs törlendő kérdés (NoteId: {noteId})");
             }
+        }
+
+        public async Task SaveQuestionsAsync(IEnumerable<Question> questions)
+        {
+            using var context = _factory.CreateDbContext();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                foreach (var question in questions)
+                {
+                    if (question.Id == 0)
+                    {
+                        context.Questions.Add(question);
+                    }
+                    else
+                    {
+                        var existing = await context.Questions
+                            .Include(q => q.Answers)
+                            .FirstOrDefaultAsync(q => q.Id == question.Id);
+
+                        if (existing != null)
+                        {
+                            context.Entry(existing).CurrentValues.SetValues(question);
+                            context.Answers.RemoveRange(existing.Answers);
+                            foreach (var ans in question.Answers) ans.QuestionId = question.Id;
+                            context.Answers.AddRange(question.Answers);
+                        }
+                    }
+                }
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch { await transaction.RollbackAsync(); throw; }
         }
     }
 }

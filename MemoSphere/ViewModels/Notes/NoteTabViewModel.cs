@@ -14,11 +14,12 @@ namespace WPF.ViewModels.Notes
         private readonly IDocumentImportService _documentImportService;
         private readonly QuestionListViewModel _questionListVM;
         private readonly MainViewModel _mainViewModel;
+        private readonly CrudOperationHandler _crudHandler;
 
         private Note _note;
         private bool _isActive;
         private bool _hasUnsavedChanges;
-        private string _originalContent; // ✅ Eredeti tartalom nyilvántartása
+        private string _originalContent;
 
         public Note Note
         {
@@ -29,7 +30,6 @@ namespace WPF.ViewModels.Notes
                 {
                     OnPropertyChanged(nameof(Title));
                     OnPropertyChanged(nameof(Content));
-                    // ✅ Eredeti tartalom tárolása betöltéskor
                     _originalContent = value?.Content ?? string.Empty;
                 }
             }
@@ -161,6 +161,9 @@ namespace WPF.ViewModels.Notes
         public RelayCommand ToggleEditModeCommand { get; }
         public RelayCommand CloseNotificationCommand { get; }
         public RelayCommand StartNoteQuizCommand { get; }
+        public RelayCommand EditQuestionCommand { get; }
+        public RelayCommand AddQuestionCommand { get; }
+        public AsyncCommand<object> DeleteQuestionCommand { get; }
 
         // Events
         public event Action<NoteTabViewModel> CloseRequested;
@@ -173,15 +176,16 @@ namespace WPF.ViewModels.Notes
             INoteService noteService,
             QuestionListViewModel questionListVM,
             IDocumentImportService documentImportService,
-            MainViewModel mainViewModel)
+            MainViewModel mainViewModel,
+            CrudOperationHandler crudOperationHandler)
         {
             _note = note ?? throw new ArgumentNullException(nameof(note));
             _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
             _questionListVM = questionListVM ?? throw new ArgumentNullException(nameof(questionListVM));
             _documentImportService = documentImportService ?? throw new ArgumentNullException(nameof(documentImportService));
             _mainViewModel = mainViewModel;
-            // ✅ Eredeti tartalom mentése inicializáláskor
             _originalContent = note?.Content ?? string.Empty;
+            _crudHandler = crudOperationHandler ?? throw new ArgumentNullException(nameof(crudOperationHandler));
 
             SaveCommand = new AsyncCommand<object>(SaveNoteAsync, CanSave);
             CloseCommand = new RelayCommand(_ => RequestClose());
@@ -194,6 +198,32 @@ namespace WPF.ViewModels.Notes
                 _ => NoteQuizRequested?.Invoke(Note.Id),
                 _ => Note.Id > 0 && HasQuestions
             );
+
+            EditQuestionCommand = new RelayCommand(q =>
+            {
+                if (q is Question question)
+                {
+                    _mainViewModel.OpenQuestionEditor(question);
+                }
+            });
+
+            AddQuestionCommand = new RelayCommand(_ =>
+            {
+                _mainViewModel.OpenQuestionEditor(null, Note.TopicId, Note.Id);
+            });
+
+            DeleteQuestionCommand = new AsyncCommand<object>(async param =>
+            {
+                if (param is Question question)
+                {
+                    bool deleted = await _crudHandler.DeleteQuestionAsync(question.Id);
+                    if (deleted)
+                    {
+                        await RefreshQuestionsAsync();
+                    }
+                }
+            }, _ => true);
+
 
             _questionListVM.PropertyChanged += (s, e) =>
             {
@@ -286,7 +316,6 @@ namespace WPF.ViewModels.Notes
 
             try
             {
-                // ✅ ELLENŐRZÉS: Van-e kérdés ÉS megváltozott-e a tartalom?
                 bool contentChanged = Note.Id > 0 && Content != _originalContent;
                 bool hasExistingQuestions = HasQuestions && Questions.Count > 0;
 
@@ -308,15 +337,12 @@ namespace WPF.ViewModels.Notes
                         return;
                     }
 
-                    // ✅ KÉRDÉSEK TÖRLÉSE AZ ADATBÁZISBÓL!
                     await _questionListVM.DeleteAllQuestionsForCurrentNoteAsync();
                 }
 
-                // ✅ Mentés végrehajtása
                 NoteSaved?.Invoke(Note);
                 HasUnsavedChanges = false;
 
-                // ✅ Sikeres mentés értesítés
                 if (contentChanged && hasExistingQuestions)
                 {
                     ShowNotification("Success", $"✅ Jegyzet mentve! Kérdések törölve.", 4000);
@@ -326,7 +352,6 @@ namespace WPF.ViewModels.Notes
                     ShowNotification("Success", "✅ Jegyzet sikeresen mentve!", 3000);
                 }
 
-                // ✅ Eredeti tartalom frissítése mentés után
                 _originalContent = Content;
 
                 if (DetectMarkdownContent(Content))

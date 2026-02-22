@@ -98,7 +98,7 @@ namespace Data.Services
         {
             var userId = _authService.GetCurrentUserId();
             using var context = _factory.CreateDbContext();
-            var today = DateTime.UtcNow.Date;
+            var today = DateTime.Today.ToUniversalTime().Date;
             var activeTopic = await context.ActiveTopics
                 .FirstOrDefaultAsync(at => at.UserId == userId && at.TopicId == topicId && at.IsActive);
             if (activeTopic == null) return;
@@ -126,6 +126,8 @@ namespace Data.Services
             if (goalJustMet)
             {
                 dailyProgress.GoalReached = true;
+
+
                 var yesterdayGoalMet = await context.DailyProgresses
                     .AnyAsync(dp => dp.UserId == userId && dp.TopicId == topicId &&
                                    dp.Date == today.AddDays(-1) && dp.GoalReached);
@@ -147,19 +149,26 @@ namespace Data.Services
         public async Task CheckStreaksOnLoginAsync()
         {
             var userId = _authService.GetCurrentUserId();
+            if (userId == Guid.Empty) return;
+
             using var context = _factory.CreateDbContext();
             var today = DateTime.UtcNow.Date;
             var yesterday = today.AddDays(-1);
+
             var activeTopics = await context.ActiveTopics
                 .Where(at => at.UserId == userId && at.IsActive && at.CurrentStreak > 0)
                 .ToListAsync();
+
             if (!activeTopics.Any()) return;
+            
             var relevantTopicIds = activeTopics.Select(at => at.TopicId).ToList();
             var recentProgress = await context.DailyProgresses
                 .Where(dp => dp.UserId == userId && relevantTopicIds.Contains(dp.TopicId) && dp.GoalReached)
                 .OrderByDescending(dp => dp.Date)
                 .ToListAsync();
+
             bool needsSave = false;
+            
             foreach (var topic in activeTopics)
             {
                 var lastGoalMetDate = recentProgress
