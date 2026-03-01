@@ -8,6 +8,7 @@ namespace Core.Interfaces.Services
         Task<IEnumerable<Note>> GetNotesByTopicIdAsync(int topicId);
         Task DeleteNoteAsync(int id);
         Task<Note> UpdateNoteAsync(Note note);
+        Task<Note>GetNoteByIdAsync(int id);
 
     }
 }

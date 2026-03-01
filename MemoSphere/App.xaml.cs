@@ -123,6 +123,7 @@ namespace MemoSphere.WPF
                         new DocumentImportService(sp.GetRequiredService<IQuestionGeneratorService>())
                     );
                     services.AddTransient<IActiveLearningService, ActiveLearningService>();
+                    services.AddTransient<INoteShareService, NoteShareService>();
 
                     // ViewModels
                     services.AddSingleton<SubjectListViewModel>();

@@ -190,5 +190,10 @@ namespace Data.Services
                 yield return text.Substring(i, Math.Min(chunkSize, text.Length - i));
             }
         }
+
+        public async Task<Note> GetNoteByIdAsync(int id)
+        {
+            return await _unitOfWork.Notes.GetByIdAsync(id);
+        }
     }
 }

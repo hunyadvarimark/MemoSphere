@@ -315,6 +315,25 @@
                 <StackPanel VerticalAlignment="Bottom" 
                             HorizontalAlignment="Right" 
                             Margin="0,0,24,24">
+                    <Button Command="{Binding ExportNoteCommand}"
+                            ToolTip="Jegyzet exportálása (.memo)"
+                            Margin="0,0,0,12">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource FloatingActionButton}">
+                                <Setter Property="Background" Value="#6366F1"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#4F46E5"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Background" Value="#CBD5E1"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <materialDesign:PackIcon Kind="ShareVariant" Width="28" Height="28" Foreground="White"/>
+                    </Button>
+                    
                     <Button Command="{Binding StartNoteQuizCommand}"
                             ToolTip="Kvíz indítása ebből a jegyzetből"
                             Margin="0,0,0,12">

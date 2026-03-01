@@ -2,6 +2,8 @@
 using Core.Enums;
 using Core.Interfaces.Services;
 using Data.Services;
+using System.Windows;
+using Microsoft.Win32;
 using WPF.Utilities;
 
 namespace WPF.ViewModels.Notes
@@ -12,7 +14,7 @@ namespace WPF.ViewModels.Notes
         private string _noteTitle = string.Empty;
         private string _noteContent = string.Empty;
         private int _selectedTopicId;
-
+        private readonly INoteShareService _noteShareService;
         public string NoteTitle
         {
             get => _noteTitle;
@@ -51,14 +53,20 @@ namespace WPF.ViewModels.Notes
 
         public AsyncCommand<object> SaveNoteCommand { get; }
         public AsyncCommand<object> DeleteNoteCommand { get; }
+        public AsyncCommand<object> ExportNoteCommand { get; }
+
 
         public event Action<Note> NoteSavedRequested;
         public event Action<int> NoteDeleteRequested;
 
-        public NoteDetailViewModel(IQuestionService questionService)
+        public NoteDetailViewModel(IQuestionService questionService, INoteShareService noteShareService)
         {
+            _noteShareService = noteShareService;
+
             SaveNoteCommand = new AsyncCommand<object>(SaveNoteRequestedAsync, CanSaveNote);
             DeleteNoteCommand = new AsyncCommand<object>(DeleteNoteAsync, CanDeleteNote);
+
+            ExportNoteCommand = new AsyncCommand<object>(ExportNoteRequestedAsync, CanExportNote);
         }
 
         /// <summary>
@@ -80,6 +88,7 @@ namespace WPF.ViewModels.Notes
 
             SaveNoteCommand.RaiseCanExecuteChanged();
             DeleteNoteCommand.RaiseCanExecuteChanged();
+            ExportNoteCommand.RaiseCanExecuteChanged();
         }
 
         /// <summary>
@@ -136,9 +145,32 @@ namespace WPF.ViewModels.Notes
             }
         }
 
-        private bool CanGenerateQuestions(QuestionType type)
+        private bool CanExportNote(object parameter) => _currentNote != null && _currentNote.Id > 0;
+
+        private async Task ExportNoteRequestedAsync(object parameter)
         {
-            return _currentNote != null && _currentNote.Id > 0;
+            MessageBox.Show("Export indítása...");
+            if (_currentNote == null) return;
+
+            var saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "MemoSphere Jegyzet (*.memo)|*.memo",
+                Title = "Jegyzet exportálása megosztáshoz",
+                FileName = $"{_currentNote.Title}.memo"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    await _noteShareService.ExportNoteToFileAsync(_currentNote.Id, saveFileDialog.FileName);
+                    MessageBox.Show("Jegyzet sikeresen exportálva!", "Siker", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Hiba az exportálás során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
     }
 }
