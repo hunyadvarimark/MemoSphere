@@ -579,32 +579,30 @@
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
 
-                                                        <TextBlock Grid.Column="0"
-                                                   Text="{Binding Text}" 
-                                                   FontWeight="SemiBold" 
-                                                   FontSize="15" 
-                                                   Foreground="#1E293B" 
-                                                   TextWrapping="Wrap"
-                                                   VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="0" 
+               Text="{Binding Text}" 
+               FontWeight="SemiBold" 
+               FontSize="15" 
+               Foreground="#1E293B" 
+               TextWrapping="Wrap" 
+               VerticalAlignment="Center"/>
 
-                                                        <Button Grid.Column="1"
-                                                                Command="{Binding DataContext.EditQuestionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                CommandParameter="{Binding}"
-                                                                Style="{StaticResource IconButton}"
-                                                                Margin="8,0,0,0"
-                                                                ToolTip="Kérdés szerkesztése">
-                                                            <materialDesign:PackIcon Kind="Pencil" 
-                                                     Foreground="#6366F1" 
-                                                     Width="20" 
-                                                     Height="20"/>
-                                                        </Button>
-                                                        <Button Command="{Binding DataContext.DeleteQuestionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                CommandParameter="{Binding}"
-                                                                Style="{StaticResource IconButton}"
-                                                                ToolTip="Törlés"
-                                                                Margin="8,0,0,0">
-                                                            <materialDesign:PackIcon Kind="Delete" Foreground="#EF4444" Width="20" Height="20"/>
-                                                        </Button>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Button Command="{Binding DataContext.EditQuestionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                CommandParameter="{Binding}"
+                Style="{StaticResource IconButton}"
+                ToolTip="Szerkesztés">
+                                                                <materialDesign:PackIcon Kind="Pencil" Foreground="#6366F1" Width="20" Height="20"/>
+                                                            </Button>
+
+                                                            <Button Command="{Binding DataContext.DeleteQuestionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                CommandParameter="{Binding}"
+                Style="{StaticResource IconButton}"
+                ToolTip="Törlés"
+                Margin="4,0,0,0">
+                                                                <materialDesign:PackIcon Kind="Delete" Foreground="#EF4444" Width="20" Height="20"/>
+                                                            </Button>
+                                                        </StackPanel>
                                                     </Grid>
 
                                                     <ItemsControl ItemsSource="{Binding Answers}">

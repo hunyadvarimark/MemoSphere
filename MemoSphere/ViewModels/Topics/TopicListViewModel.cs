@@ -3,7 +3,7 @@ using Core.Interfaces.Services;
 using System.Collections.ObjectModel;
 using System.Windows;
 using WPF.Utilities;
-using WPF.ViewModels.Dashboard;  // Keep this if needed elsewhere, but we won't use DashboardViewModel here
+using WPF.ViewModels.Dashboard;
 
 namespace WPF.ViewModels.Topics
 {
@@ -11,7 +11,6 @@ namespace WPF.ViewModels.Topics
     {
         private readonly ITopicService _topicService;
         private readonly IActiveLearningService _activeLearningService;
-        // REMOVE: private readonly DashboardViewModel _dashboardViewModel;  // No longer needed for decoupling
 
         public ObservableCollection<TopicViewModel> Topics { get; } = new();
         private TopicViewModel _selectedTopic;
@@ -24,7 +23,6 @@ namespace WPF.ViewModels.Topics
         public event Action<int> DeleteTopicRequested;
         public event Action<TopicViewModel> TopicSelected;
 
-        // ADD: The missing event (parameterless Action, since the subscriber just needs to know "something changed")
         public event Action TopicActivationChanged;
 
         public TopicViewModel SelectedTopic
@@ -34,19 +32,25 @@ namespace WPF.ViewModels.Topics
             {
                 if (_selectedTopic != value)
                 {
+                    if (_selectedTopic != null)
+                        _selectedTopic.IsSelected = false;
+
                     _selectedTopic = value;
+
+                    if (_selectedTopic != null)
+                        _selectedTopic.IsSelected = true;
+
                     OnPropertyChanged(nameof(SelectedTopic));
                     TopicSelected?.Invoke(value);
                 }
             }
         }
 
-        // CHANGE: Remove DashboardViewModel from constructor params
+
         public TopicListViewModel(ITopicService topicService, IActiveLearningService activeLearningService)
         {
             _topicService = topicService;
             _activeLearningService = activeLearningService;
-            // REMOVE: _dashboardViewModel = dashboardViewModel;
 
             SelectTopicCommand = new RelayCommand(
                  param =>
@@ -112,21 +116,17 @@ namespace WPF.ViewModels.Topics
         public async Task LoadTopicsAsync(int subjectId)
         {
             Topics.Clear();
-            // 1. Témakörök lekérése (mint eddig)
             var topics = await _topicService.GetTopicBySubjectIdAsync(subjectId);
-            // 2. Aktív témakörök ID-jainak lekérése (HashSet a gyors kereséshez)
             var activeTopics = await _activeLearningService.GetActiveTopicsAsync();
             var activeTopicIds = activeTopics.Select(at => at.TopicId).ToHashSet();
-            // 3. Lista feltöltése és 'IsActive' beállítása
+            
             foreach (var t in topics.OrderBy(x => x.Title))
             {
                 var topicVM = new TopicViewModel(t);
-                // Ellenőrizzük, hogy ez a téma benne van-e az aktívak listájában
                 topicVM.IsActive = activeTopicIds.Contains(t.Id);
                 Topics.Add(topicVM);
             }
             SelectedTopic = null;
-            // ADD: Optionally raise the event here if loading changes activation states, but probably not needed since dashboard loads separately
         }
 
         public void ClearTopics()
@@ -156,8 +156,7 @@ namespace WPF.ViewModels.Topics
                 var lowerSearch = searchText.ToLower();
                 foreach (var topic in Topics)
                 {
-                    // Szűrés a címek alapján
-                    // Ha van IsVisible property, állítsd be
+
                 }
             }
 

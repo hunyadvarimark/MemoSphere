@@ -33,9 +33,10 @@
 
         <TextBlock Text="Kérdés típusa" FontWeight="SemiBold" Foreground="#64748B" Margin="0,0,0,5"/>
 
-        <ComboBox SelectedItem="{Binding QuestionType}" 
-                  Visibility="{Binding IsNewQuestion, Converter={StaticResource BooleanToVisibilityConverter}}"
-                  Margin="0,0,0,20" Padding="8">
+        <ComboBox SelectedValue="{Binding QuestionType, UpdateSourceTrigger=PropertyChanged}" 
+          SelectedValuePath="Tag"
+          Visibility="{Binding IsNewQuestion, Converter={StaticResource BooleanToVisibilityConverter}}"
+          Margin="0,0,0,20" Padding="8">
             <ComboBox.Items>
                 <ComboBoxItem Content="Multiple Choice" Tag="{x:Static local:QuestionType.MultipleChoice}"/>
                 <ComboBoxItem Content="True / False" Tag="{x:Static local:QuestionType.TrueFalse}"/>

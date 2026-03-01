@@ -12,6 +12,8 @@ namespace WPF.ViewModels.Subjects
         public ObservableCollection<SubjectViewModel> Subjects { get; } = new();
         private SubjectViewModel _selectedSubject;
 
+        
+
         public RelayCommand EditSubjectCommand { get; }
         public RelayCommand DeleteSubjectCommand { get; }
         public RelayCommand SelectSubjectCommand { get; }
@@ -28,7 +30,14 @@ namespace WPF.ViewModels.Subjects
             {
                 if (_selectedSubject != value)
                 {
+                    if (_selectedSubject != null)
+                        _selectedSubject.IsSelected = false;
+
                     _selectedSubject = value;
+
+                    if (_selectedSubject != null)
+                        _selectedSubject.IsSelected = true;
+
                     OnPropertyChanged();
                     SubjectSelected?.Invoke(value);
                 }

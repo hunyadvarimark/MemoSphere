@@ -31,10 +31,17 @@ namespace WPF.ViewModels.Topics
                 }
             }
         }
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set => SetProperty(ref _isSelected, value);
+        }
         public TopicViewModel(Topic topic)
         {
             Topic = topic;
             _isActive = false;
         }
+
     }
 }
