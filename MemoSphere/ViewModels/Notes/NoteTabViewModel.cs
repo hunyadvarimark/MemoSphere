@@ -1,10 +1,11 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
+using Microsoft.Win32;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
 using WPF.Utilities;
 using WPF.ViewModels.Questions;
-using System.Linq;
-using System.IO;
 
 namespace WPF.ViewModels.Notes
 {
@@ -15,6 +16,7 @@ namespace WPF.ViewModels.Notes
         private readonly QuestionListViewModel _questionListVM;
         private readonly MainViewModel _mainViewModel;
         private readonly CrudOperationHandler _crudHandler;
+        private readonly INoteShareService _noteShareService;
 
         private Note _note;
         private bool _isActive;
@@ -164,7 +166,7 @@ namespace WPF.ViewModels.Notes
         public RelayCommand EditQuestionCommand { get; }
         public RelayCommand AddQuestionCommand { get; }
         public AsyncCommand<object> DeleteQuestionCommand { get; }
-
+        public AsyncCommand<object> ExportNoteCommand { get; }
         // Events
         public event Action<NoteTabViewModel> CloseRequested;
         public event Action<Note> NoteSaved;
@@ -177,12 +179,14 @@ namespace WPF.ViewModels.Notes
             QuestionListViewModel questionListVM,
             IDocumentImportService documentImportService,
             MainViewModel mainViewModel,
-            CrudOperationHandler crudOperationHandler)
+            CrudOperationHandler crudOperationHandler, 
+            INoteShareService noteShareService)
         {
             _note = note ?? throw new ArgumentNullException(nameof(note));
             _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
             _questionListVM = questionListVM ?? throw new ArgumentNullException(nameof(questionListVM));
             _documentImportService = documentImportService ?? throw new ArgumentNullException(nameof(documentImportService));
+            _noteShareService = noteShareService ?? throw new ArgumentNullException(nameof(noteShareService));
             _mainViewModel = mainViewModel;
             _originalContent = note?.Content ?? string.Empty;
             _crudHandler = crudOperationHandler ?? throw new ArgumentNullException(nameof(crudOperationHandler));
@@ -223,6 +227,9 @@ namespace WPF.ViewModels.Notes
                     }
                 }
             }, _ => true);
+
+            ExportNoteCommand = new AsyncCommand<object>(ExportNoteAsync, _ => Note?.Id > 0);
+            this.NoteSaved += (n) => ExportNoteCommand.RaiseCanExecuteChanged();
 
 
             _questionListVM.PropertyChanged += (s, e) =>
@@ -544,6 +551,28 @@ namespace WPF.ViewModels.Notes
                    (content.Contains("###") && content.Length > 200) ||
                    (content.Contains("##") && content.Length > 200) ||
                    (content.Contains("**") && content.Length > 500);
+        }
+        private async Task ExportNoteAsync(object parameter)
+        {
+            var sfd = new SaveFileDialog
+            {
+                Filter = "MemoSphere Jegyzet (*.memo)|*.memo",
+                Title = "Jegyzet exportálása",
+                FileName = $"{Title}.memo"
+            };
+
+            if (sfd.ShowDialog() == true)
+            {
+                try
+                {
+                    await _noteShareService.ExportNoteToFileAsync(Note.Id, sfd.FileName);
+                    System.Windows.MessageBox.Show("Jegyzet sikeresen exportálva!", "Siker");
+                }
+                catch (System.Exception ex)
+                {
+                    System.Windows.MessageBox.Show($"Hiba az exportálás során: {ex.Message}", "Hiba");
+                }
+            }
         }
     }
 }

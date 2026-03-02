@@ -1,5 +1,7 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
+using MemoSphere.Data.Services;
+using Microsoft.Win32;
 using System.Collections.ObjectModel;
 using System.Windows;
 using WPF.Utilities;
@@ -9,6 +11,7 @@ namespace WPF.ViewModels.Subjects
     public class SubjectListViewModel : BaseViewModel
     {
         private readonly ISubjectService _subjectService;
+        private readonly INoteShareService _noteShareService;
         public ObservableCollection<SubjectViewModel> Subjects { get; } = new();
         private SubjectViewModel _selectedSubject;
 
@@ -17,6 +20,7 @@ namespace WPF.ViewModels.Subjects
         public RelayCommand EditSubjectCommand { get; }
         public RelayCommand DeleteSubjectCommand { get; }
         public RelayCommand SelectSubjectCommand { get; }
+        public AsyncCommand<object> ExportSubjectCommand { get; }
 
         public event Action<Subject> EditSubjectRequested;
         public event Action<int> DeleteSubjectRequested;
@@ -44,9 +48,10 @@ namespace WPF.ViewModels.Subjects
             }
         }
 
-        public SubjectListViewModel(ISubjectService subjectService)
+        public SubjectListViewModel(ISubjectService subjectService, INoteShareService noteShareService)
         {
             _subjectService = subjectService;
+            _noteShareService = noteShareService;
             EditSubjectCommand = new RelayCommand(
                 param => { if (param is SubjectViewModel subjectVM) EditSubjectRequested?.Invoke(subjectVM.Subject); },
                 param => param is SubjectViewModel);
@@ -62,6 +67,30 @@ namespace WPF.ViewModels.Subjects
                     }
                 }
             );
+            ExportSubjectCommand = new AsyncCommand<object>(async param => {
+                if (param is SubjectViewModel svm)
+                {
+                    var sfd = new Microsoft.Win32.SaveFileDialog
+                    {
+                        Filter = "MemoSphere fájl (*.memo)|*.memo",
+                        FileName = $"{svm.Title}.memo"
+                    };
+
+                    if (sfd.ShowDialog() == true)
+                    {
+                        try
+                        {
+                            await _noteShareService.ExportSubjectToFileAsync(svm.Id, sfd.FileName);
+                            System.Windows.MessageBox.Show("Tantárgy sikeresen exportálva!", "Siker");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Windows.MessageBox.Show($"Hiba: {ex.Message}", "Hiba");
+                        }
+                    }
+                }
+            });
+
         }
 
         public async Task LoadSubjectsAsync()

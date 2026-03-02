@@ -61,7 +61,7 @@ namespace MemoSphere.Data.Migrations
                     b.HasIndex("UserId", "TopicId")
                         .IsUnique();
 
-                    b.ToTable("ActiveTopics");
+                    b.ToTable("ActiveTopics", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Answer", b =>
@@ -92,7 +92,7 @@ namespace MemoSphere.Data.Migrations
 
                     b.HasIndex("QuestionId");
 
-                    b.ToTable("Answers");
+                    b.ToTable("Answers", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.DailyProgress", b =>
@@ -128,7 +128,7 @@ namespace MemoSphere.Data.Migrations
                     b.HasIndex("UserId", "TopicId", "Date")
                         .IsUnique();
 
-                    b.ToTable("DailyProgresses");
+                    b.ToTable("DailyProgresses", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Note", b =>
@@ -157,7 +157,7 @@ namespace MemoSphere.Data.Migrations
 
                     b.HasIndex("TopicId");
 
-                    b.ToTable("Notes");
+                    b.ToTable("Notes", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.NoteChunk", b =>
@@ -179,7 +179,7 @@ namespace MemoSphere.Data.Migrations
 
                     b.HasIndex("NoteId");
 
-                    b.ToTable("NoteChunks");
+                    b.ToTable("NoteChunks", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Question", b =>
@@ -215,7 +215,7 @@ namespace MemoSphere.Data.Migrations
 
                     b.HasIndex("TopicId");
 
-                    b.ToTable("Questions");
+                    b.ToTable("Questions", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.QuestionStatistic", b =>
@@ -251,7 +251,7 @@ namespace MemoSphere.Data.Migrations
                     b.HasIndex("UserId", "QuestionId")
                         .IsUnique();
 
-                    b.ToTable("QuestionStatistics");
+                    b.ToTable("QuestionStatistics", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Subject", b =>
@@ -271,7 +271,7 @@ namespace MemoSphere.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Subjects");
+                    b.ToTable("Subjects", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.Topic", b =>
@@ -296,7 +296,7 @@ namespace MemoSphere.Data.Migrations
 
                     b.HasIndex("SubjectId");
 
-                    b.ToTable("Topics");
+                    b.ToTable("Topics", (string)null);
                 });
 
             modelBuilder.Entity("Core.Entities.ActiveTopic", b =>

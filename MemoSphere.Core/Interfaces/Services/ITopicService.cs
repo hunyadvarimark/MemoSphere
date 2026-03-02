@@ -13,5 +13,6 @@ namespace Core.Interfaces.Services
         Task DeleteTopicAsync(int id);
         Task<Topic> UpdateTopicAsync(Topic topic);
         Task<bool> TopicExistsAsync(string title, int subjectId, int? excludeId = null);
+        Task<Topic> GetTopicWithHierarchyAsync(int topicId);
     }
 }

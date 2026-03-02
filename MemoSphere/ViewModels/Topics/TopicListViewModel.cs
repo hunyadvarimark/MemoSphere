@@ -1,9 +1,12 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
+using MemoSphere.Data.Services;
+using Microsoft.Win32;
 using System.Collections.ObjectModel;
 using System.Windows;
 using WPF.Utilities;
 using WPF.ViewModels.Dashboard;
+using WPF.ViewModels.Subjects;
 
 namespace WPF.ViewModels.Topics
 {
@@ -11,6 +14,8 @@ namespace WPF.ViewModels.Topics
     {
         private readonly ITopicService _topicService;
         private readonly IActiveLearningService _activeLearningService;
+        private readonly INoteShareService _noteShareService;
+
 
         public ObservableCollection<TopicViewModel> Topics { get; } = new();
         private TopicViewModel _selectedTopic;
@@ -19,6 +24,10 @@ namespace WPF.ViewModels.Topics
         public RelayCommand ActivateTopicCommand { get; }
         public RelayCommand DeactivateTopicCommand { get; }
         public RelayCommand SelectTopicCommand { get; }
+        public AsyncCommand<object> ImportNoteCommand { get; }
+        public AsyncCommand<object> ExportTopicCommand { get; }
+
+
         public event Action<Topic> EditTopicRequested;
         public event Action<int> DeleteTopicRequested;
         public event Action<TopicViewModel> TopicSelected;
@@ -47,10 +56,11 @@ namespace WPF.ViewModels.Topics
         }
 
 
-        public TopicListViewModel(ITopicService topicService, IActiveLearningService activeLearningService)
+        public TopicListViewModel(ITopicService topicService, IActiveLearningService activeLearningService, INoteShareService noteShareService)
         {
             _topicService = topicService;
             _activeLearningService = activeLearningService;
+            _noteShareService = noteShareService;
 
             SelectTopicCommand = new RelayCommand(
                  param =>
@@ -111,6 +121,30 @@ namespace WPF.ViewModels.Topics
                     }
                 },
                 param => param is TopicViewModel);
+            ImportNoteCommand = new AsyncCommand<object>(ImportNoteAsync, _ => SelectedTopic != null);
+            ExportTopicCommand = new AsyncCommand<object>(async param => {
+                if (param is TopicViewModel tvm)
+                {
+                    var sfd = new Microsoft.Win32.SaveFileDialog
+                    {
+                        Filter = "MemoSphere fájl (*.memo)|*.memo",
+                        FileName = $"{tvm.Title}.memo"
+                    };
+
+                    if (sfd.ShowDialog() == true)
+                    {
+                        try
+                        {
+                            await _noteShareService.ExportSubjectToFileAsync(tvm.Id, sfd.FileName);
+                            System.Windows.MessageBox.Show("Témakör sikeresen exportálva!", "Siker");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Windows.MessageBox.Show($"Hiba: {ex.Message}", "Hiba");
+                        }
+                    }
+                }
+            });
         }
 
         public async Task LoadTopicsAsync(int subjectId)
@@ -161,6 +195,31 @@ namespace WPF.ViewModels.Topics
             }
 
         }
+        private async Task ImportNoteAsync(object parameter)
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "MemoSphere Jegyzet (*.memo)|*.memo",
+                Title = "Jegyzet importálása"
+            };
 
+            if (openFileDialog.ShowDialog() == true)
+            {
+                try
+                {
+                    // Meghívjuk a szervizt a fájl elérési útjával és a kijelölt Topic ID-val
+                    await _noteShareService.ImportNoteFromFileAsync(openFileDialog.FileName, SelectedTopic.Id);
+
+                    MessageBox.Show("Jegyzet sikeresen beimportálva!", "Siker", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    // Itt fontos frissíteni a jegyzetek listáját, hogy látszódjon az új elem!
+                    // Ha van NoteListViewModel referenciád, hívd meg a frissítését.
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Hiba az importálás során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
     }
 }

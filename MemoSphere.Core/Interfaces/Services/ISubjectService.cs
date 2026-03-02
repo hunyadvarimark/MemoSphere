@@ -11,5 +11,6 @@ namespace Core.Interfaces.Services
         Task DeleteSubjectAsync(int id);
         Task<bool> SubjectExistsAsync(string title, int? excludeId = null);
         Task<Subject> UpdateSubjectAsync(Subject subject);
+        Task<Subject> GetSubjectWithHierarchyAsync(int id);
     }
 }

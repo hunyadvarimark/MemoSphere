@@ -226,6 +226,17 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Style="{StaticResource CompactListItem}">
+                                        <Border.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Tantárgy Exportálása (.memo)" 
+                                                          Command="{Binding DataContext.SubjectsVM.ExportSubjectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                          CommandParameter="{Binding}">
+                                                    <MenuItem.Icon>
+                                                        <materialDesign:PackIcon Kind="ShareVariant" Foreground="#6366F1"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                            </ContextMenu>
+                                        </Border.ContextMenu>
                                         <Border.InputBindings>
                                             <MouseBinding MouseAction="LeftClick"
                                                          Command="{Binding DataContext.SubjectsVM.SelectSubjectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -376,6 +387,17 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Style="{StaticResource CompactListItem}">
+                                        <Border.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Témakör Exportálása (.memo)" 
+                                                      Command="{Binding DataContext.TopicsVM.ExportTopicCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                      CommandParameter="{Binding}">
+                                                <MenuItem.Icon>
+                                                    <materialDesign:PackIcon Kind="ShareVariant" Foreground="#6366F1"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                        </ContextMenu>
+                                        </Border.ContextMenu>
                                         <Border.InputBindings>
                                             <MouseBinding MouseAction="LeftClick"
                                                          Command="{Binding DataContext.TopicsVM.SelectTopicCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -815,16 +837,22 @@
                             <Grid>
                                 <StackPanel Orientation="Horizontal">
                                     <materialDesign:PackIcon Kind="NoteMultiple"
-                                                            Width="24"
-                                                            Height="24"
-                                                            Foreground="#6366F1"
-                                                            VerticalAlignment="Center"/>
+                                            Width="24"
+                                            Height="24"
+                                            Foreground="#6366F1"
+                                            VerticalAlignment="Center"/>
                                     <TextBlock Text="Összes jegyzet"
-                                              FontSize="18"
-                                              FontWeight="Bold"
-                                              Foreground="#1E293B"
-                                              VerticalAlignment="Center"
-                                              Margin="12,0,0,0"/>
+                                            FontSize="18"
+                                            FontWeight="Bold"
+                                            Foreground="#1E293B"
+                                            VerticalAlignment="Center"
+                                            Margin="12,0,0,0"/>
+                                    <Button Command="{Binding TopicsVM.ImportNoteCommand}" 
+                                            ToolTip="Jegyzet importálása (.memo fájlból)"
+                                            Style="{StaticResource MaterialDesignIconButton}"
+                                            Margin="10,0,0,0">
+                                        <materialDesign:PackIcon Kind="FileImport" Width="20" Height="20" Foreground="#6366F1"/>
+                                    </Button>
                                 </StackPanel>
                                 <Button Command="{Binding ToggleNoteListCommand}"
                                        HorizontalAlignment="Right"

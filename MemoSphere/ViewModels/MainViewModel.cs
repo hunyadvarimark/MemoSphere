@@ -1,6 +1,7 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
 using Data.Services;
+using MemoSphere.Data.Services;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
@@ -28,6 +29,7 @@ namespace WPF.ViewModels
         private readonly INoteService _noteService;
         private readonly IQuestionService _questionService;
         private readonly IAuthService _authService;
+        private readonly INoteShareService _noteShareService;
         private readonly IDocumentImportService _documentImportService;
         public QuizViewModel QuizVM { get; }
         public QuizTopicSelectionViewModel QuizSelectionVM { get; }
@@ -170,7 +172,8 @@ namespace WPF.ViewModels
             INoteService noteService,
             IQuestionService questionService,
             IAuthService authService,
-            IDocumentImportService documentImportService)
+            IDocumentImportService documentImportService,
+            INoteShareService noteShareService)
         {
             // ViewModels
             SubjectsVM = subjectsVM ?? throw new ArgumentNullException(nameof(subjectsVM));
@@ -190,6 +193,7 @@ namespace WPF.ViewModels
             _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
             _questionService = questionService ?? throw new ArgumentNullException(nameof(questionService));
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+            _noteShareService = noteShareService;
             _documentImportService = documentImportService ?? throw new ArgumentNullException(nameof(documentImportService));
             _hasEnoughQuestions = false;
             // Commands
@@ -268,7 +272,7 @@ namespace WPF.ViewModels
                 return;
             }
             var questionListVM = new QuestionListViewModel(_questionService);
-            var noteTab = new NoteTabViewModel(note, _noteService, questionListVM, _documentImportService, this, _crudHandler);
+            var noteTab = new NoteTabViewModel(note, _noteService, questionListVM, _documentImportService, this, _crudHandler, _noteShareService);
             noteTab.CloseRequested += OnNoteTabCloseRequested;
             noteTab.NoteSaved += OnNoteTabSaved;
             noteTab.ActivateRequested += tab => ActiveNote = tab;

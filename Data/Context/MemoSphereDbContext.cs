@@ -38,9 +38,8 @@ namespace Data.Context
 
             modelBuilder.Entity<Question>()
                 .HasOne(q => q.SourceNote)
-                .WithMany()
-                .HasForeignKey(q => q.SourceNoteId)
-                .IsRequired(false)
+                .WithMany(n => n.Questions)
+                .HasForeignKey(q => q.SourceNoteId) 
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<NoteChunk>()

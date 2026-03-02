@@ -1,8 +1,9 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
-using System.Linq.Expressions;
-using Microsoft.EntityFrameworkCore;
 using Data.Context;
+using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
+using static iText.StyledXmlParser.Jsoup.Select.Evaluator;
 
 namespace Data.Services
 {
@@ -219,6 +220,13 @@ namespace Data.Services
                              (!excludeId.HasValue || t.Id != excludeId.Value) &&
                              t.Subject.UserId == userId
             );
+        }
+        public async Task<Topic> GetTopicWithHierarchyAsync(int topicId)
+        {
+            return (await _unitOfWork.Topics.GetFilteredAsync(
+                filter: t => t.Id == topicId,
+                includeProperties: "Notes.Questions.Answers"
+            )).FirstOrDefault();
         }
     }
 }

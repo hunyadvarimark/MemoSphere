@@ -195,5 +195,12 @@ namespace Data.Services
             // Távolítsuk el, mivel az Update ment
             return existing;
         }
+        public async Task<Subject> GetSubjectWithHierarchyAsync(int id)
+        {
+            return (await _unitOfWork.Subjects.GetFilteredAsync(
+                filter: s => s.Id == id,
+                includeProperties: "Topics.Notes.Questions.Answers" // Behozza a teljes fát!
+            )).FirstOrDefault();
+        }
     }
 }
