@@ -66,9 +66,10 @@
                  Visibility="{Binding QuestionType, Converter={StaticResource QuestionTypeToVisibilityConverter}, ConverterParameter=NotTrueFalse}" 
                  Padding="10"/>
 
-        <ComboBox SelectedItem="{Binding CorrectAnswer}" 
-                  Visibility="{Binding QuestionType, Converter={StaticResource QuestionTypeToVisibilityConverter}, ConverterParameter=TrueFalse}"
-                  Padding="8">
+        <ComboBox SelectedValue="{Binding CorrectAnswer, UpdateSourceTrigger=PropertyChanged}" 
+          SelectedValuePath="Content"
+          Visibility="{Binding QuestionType, Converter={StaticResource QuestionTypeToVisibilityConverter}, ConverterParameter=TrueFalse}"
+          Padding="8">
             <ComboBoxItem Content="Igaz"/>
             <ComboBoxItem Content="Hamis"/>
         </ComboBox>

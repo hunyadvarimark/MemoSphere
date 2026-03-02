@@ -91,7 +91,6 @@ namespace WPF.ViewModels.Questions
             CancelCommand = new RelayCommand(_ => CancelRequested?.Invoke());
         }
 
-        // ÚJ: Két paramétert vár, hogy a kérdés mindkét szülőhöz kötődjön
         public void ResetState(int topicId, int noteId)
         {
             _currentQuestion = null;
@@ -101,7 +100,6 @@ namespace WPF.ViewModels.Questions
             CorrectAnswer = string.Empty;
             Options.Clear();
 
-            // Alapból adjunk hozzá 3 üres opciót a kényelmesebb bevitelhez
             Options.Add(new OptionWrapper());
             Options.Add(new OptionWrapper());
             Options.Add(new OptionWrapper());
@@ -153,16 +151,15 @@ namespace WPF.ViewModels.Questions
             if (!CanSaveQuestion(null)) return;
 
             Question questionToSave = _currentQuestion ?? new Question();
-
             questionToSave.Text = QuestionText;
             questionToSave.QuestionType = QuestionType;
             questionToSave.TopicId = TopicId;
             questionToSave.SourceNoteId = NoteId;
 
             var answers = new List<Answer>
-            {
-                new Answer { Text = CorrectAnswer, IsCorrect = true, QuestionId = questionToSave.Id }
-            };
+    {
+        new Answer { Text = CorrectAnswer, IsCorrect = true, QuestionId = questionToSave.Id }
+    };
 
             if (QuestionType == QuestionType.MultipleChoice)
             {
@@ -170,14 +167,14 @@ namespace WPF.ViewModels.Questions
                 {
                     if (!string.IsNullOrWhiteSpace(optionWrapper.Text))
                     {
-                        answers.Add(new Answer
-                        {
-                            Text = optionWrapper.Text,
-                            IsCorrect = false,
-                            QuestionId = questionToSave.Id
-                        });
+                        answers.Add(new Answer { Text = optionWrapper.Text, IsCorrect = false, QuestionId = questionToSave.Id });
                     }
                 }
+            }
+            else if (QuestionType == QuestionType.TrueFalse)
+            {
+                string wrongAnswer = (CorrectAnswer == "Igaz") ? "Hamis" : "Igaz";
+                answers.Add(new Answer { Text = wrongAnswer, IsCorrect = false, QuestionId = questionToSave.Id });
             }
 
             questionToSave.Answers = answers;

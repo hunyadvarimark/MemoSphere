@@ -15,7 +15,7 @@ namespace WPF.ViewModels.Topics
         private readonly ITopicService _topicService;
         private readonly IActiveLearningService _activeLearningService;
         private readonly INoteShareService _noteShareService;
-
+        private int _currentSubjectId;
 
         public ObservableCollection<TopicViewModel> Topics { get; } = new();
         private TopicViewModel _selectedTopic;
@@ -26,6 +26,7 @@ namespace WPF.ViewModels.Topics
         public RelayCommand SelectTopicCommand { get; }
         public AsyncCommand<object> ImportNoteCommand { get; }
         public AsyncCommand<object> ExportTopicCommand { get; }
+        public AsyncCommand<object> ImportTopicCommand { get; }
 
 
         public event Action<Topic> EditTopicRequested;
@@ -135,7 +136,7 @@ namespace WPF.ViewModels.Topics
                     {
                         try
                         {
-                            await _noteShareService.ExportSubjectToFileAsync(tvm.Id, sfd.FileName);
+                            await _noteShareService.ExportTopicToFileAsync(tvm.Id, sfd.FileName);
                             System.Windows.MessageBox.Show("Témakör sikeresen exportálva!", "Siker");
                         }
                         catch (Exception ex)
@@ -145,10 +146,34 @@ namespace WPF.ViewModels.Topics
                     }
                 }
             });
+            ImportTopicCommand = new AsyncCommand<object>(async _ => {
+                if (_currentSubjectId <= 0) return;
+
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Filter = "MemoSphere fájl (*.memo)|*.memo",
+                    Title = "Témakör importálása"
+                };
+
+                if (ofd.ShowDialog() == true)
+                {
+                    try
+                    {
+                        await _noteShareService.ImportTopicFromFileAsync(ofd.FileName, _currentSubjectId);
+                        await LoadTopicsAsync(_currentSubjectId); // Lista frissítése
+                        System.Windows.MessageBox.Show("Témakör sikeresen importálva!", "Siker");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show($"Hiba: {ex.Message}", "Hiba");
+                    }
+                }
+            }, _ => _currentSubjectId > 0);
         }
 
         public async Task LoadTopicsAsync(int subjectId)
         {
+            _currentSubjectId = subjectId;
             Topics.Clear();
             var topics = await _topicService.GetTopicBySubjectIdAsync(subjectId);
             var activeTopics = await _activeLearningService.GetActiveTopicsAsync();

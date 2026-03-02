@@ -181,10 +181,15 @@
                         <!-- TANTÁRGYAK SECTION -->
                         <Grid Margin="0,0,0,8">
                             <TextBlock Text="📚 TANTÁRGYAK" 
-                                      FontSize="11" 
-                                      FontWeight="Bold" 
-                                      Foreground="#64748B"
-                                      VerticalAlignment="Center"/>
+                                    FontSize="11" 
+                                    FontWeight="Bold" 
+                                    Foreground="#64748B"
+                                    VerticalAlignment="Center"/>
+                            <Button Command="{Binding SubjectsVM.ImportSubjectCommand}"
+                                    ToolTip="Tantárgy importálása (.memo)"
+                                    Background="Transparent" BorderThickness="0" Cursor="Hand" Width="28" Height="28">  
+                            <materialDesign:PackIcon Kind="FileImport" Width="16" Height="16" Foreground="#6366F1"/>
+                            </Button>
                             <Button Command="{Binding AddSubjectCommand}"
                                    HorizontalAlignment="Right"
                                    Width="28"
@@ -221,16 +226,16 @@
                         </Grid>
 
                         <!-- Tantárgyak lista - KOMPAKT -->
-                        <ItemsControl ItemsSource="{Binding SubjectsVM.Subjects}"
-                                     Margin="0,0,0,16">
+                        <ItemsControl ItemsSource="{Binding SubjectsVM.Subjects}" Margin="0,0,0,16">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Style="{StaticResource CompactListItem}">
+                                    <Border Style="{StaticResource CompactListItem}"
+                    Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
                                         <Border.ContextMenu>
                                             <ContextMenu>
                                                 <MenuItem Header="Tantárgy Exportálása (.memo)" 
-                                                          Command="{Binding DataContext.SubjectsVM.ExportSubjectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                          CommandParameter="{Binding}">
+                                  Command="{Binding PlacementTarget.Tag.SubjectsVM.ExportSubjectCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding}">
                                                     <MenuItem.Icon>
                                                         <materialDesign:PackIcon Kind="ShareVariant" Foreground="#6366F1"/>
                                                     </MenuItem.Icon>
@@ -343,10 +348,15 @@
                         <!-- TÉMAKÖRÖK SECTION -->
                         <Grid Margin="0,8,0,8">
                             <TextBlock Text="📖 TÉMAKÖRÖK" 
-                                      FontSize="11" 
-                                      FontWeight="Bold" 
-                                      Foreground="#64748B"
-                                      VerticalAlignment="Center"/>
+                                    FontSize="11" 
+                                    FontWeight="Bold" 
+                                    Foreground="#64748B"
+                                    VerticalAlignment="Center"/>
+                            <Button Command="{Binding TopicsVM.ImportTopicCommand}"
+                                    ToolTip="Témakör importálása (.memo)"
+                                    Background="Transparent" BorderThickness="0" Cursor="Hand" Width="28" Height="28">
+                            <materialDesign:PackIcon Kind="FileImport" Width="16" Height="16" Foreground="#10B981"/>
+                            </Button>
                             <Button Command="{Binding AddTopicCommand}"
                                    HorizontalAlignment="Right"
                                    Width="28"
@@ -386,17 +396,18 @@
                         <ItemsControl ItemsSource="{Binding TopicsVM.Topics}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Style="{StaticResource CompactListItem}">
+                                    <Border Style="{StaticResource CompactListItem}"
+                    Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
                                         <Border.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="Témakör Exportálása (.memo)" 
-                                                      Command="{Binding DataContext.TopicsVM.ExportTopicCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                      CommandParameter="{Binding}">
-                                                <MenuItem.Icon>
-                                                    <materialDesign:PackIcon Kind="ShareVariant" Foreground="#6366F1"/>
-                                                </MenuItem.Icon>
-                                            </MenuItem>
-                                        </ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Témakör Exportálása (.memo)" 
+                                  Command="{Binding PlacementTarget.Tag.TopicsVM.ExportTopicCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding}">
+                                                    <MenuItem.Icon>
+                                                        <materialDesign:PackIcon Kind="ShareVariant" Foreground="#6366F1"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                            </ContextMenu>
                                         </Border.ContextMenu>
                                         <Border.InputBindings>
                                             <MouseBinding MouseAction="LeftClick"

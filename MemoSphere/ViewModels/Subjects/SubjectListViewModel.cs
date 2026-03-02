@@ -21,6 +21,7 @@ namespace WPF.ViewModels.Subjects
         public RelayCommand DeleteSubjectCommand { get; }
         public RelayCommand SelectSubjectCommand { get; }
         public AsyncCommand<object> ExportSubjectCommand { get; }
+        public AsyncCommand<object> ImportSubjectCommand { get; }
 
         public event Action<Subject> EditSubjectRequested;
         public event Action<int> DeleteSubjectRequested;
@@ -87,6 +88,27 @@ namespace WPF.ViewModels.Subjects
                         {
                             System.Windows.MessageBox.Show($"Hiba: {ex.Message}", "Hiba");
                         }
+                    }
+                }
+            });
+            ImportSubjectCommand = new AsyncCommand<object>(async _ => {
+                var ofd = new Microsoft.Win32.OpenFileDialog
+                {
+                    Filter = "MemoSphere fájl (*.memo)|*.memo",
+                    Title = "Tantárgy importálása"
+                };
+
+                if (ofd.ShowDialog() == true)
+                {
+                    try
+                    {
+                        await _noteShareService.ImportSubjectFromFileAsync(ofd.FileName);
+                        await LoadSubjectsAsync(); // Lista frissítése
+                        System.Windows.MessageBox.Show("Tantárgy sikeresen importálva!", "Siker");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show($"Hiba: {ex.Message}", "Hiba");
                     }
                 }
             });
