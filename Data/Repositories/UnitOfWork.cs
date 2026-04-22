@@ -20,7 +20,7 @@ public class UnitOfWork : IUnitOfWork
         QuestionStatistics = new GenericRepository<QuestionStatistic>(_factory);
     }
 
-    public IGenericRepository<Subject> Subjects { get; private set; }
+    public IGenericRepository<Subject> Subjects { get; private set; } 
     public IGenericRepository<Topic> Topics { get; private set; }
     public IGenericRepository<Note> Notes { get; private set; }
     public IGenericRepository<Question> Questions { get; private set; }

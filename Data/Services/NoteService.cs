@@ -180,14 +180,17 @@ namespace Data.Services
 
         private IEnumerable<string> SplitIntoChunks(string text, int chunkSize)
         {
-            if (string.IsNullOrEmpty(text))
-            {
-                yield break;
-            }
+            if (string.IsNullOrEmpty(text)) yield break;
 
-            for (int i = 0; i < text.Length; i += chunkSize)
+            int overlap = 200;
+            int i = 0;
+            while (i < text.Length)
             {
-                yield return text.Substring(i, Math.Min(chunkSize, text.Length - i));
+                int length = Math.Min(chunkSize, text.Length - i);
+                yield return text.Substring(i, length);
+
+                i += (chunkSize - overlap);
+                if (i + overlap >= text.Length) break;
             }
         }
 
