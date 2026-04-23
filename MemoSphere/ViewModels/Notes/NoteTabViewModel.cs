@@ -11,7 +11,6 @@ namespace WPF.ViewModels.Notes
 {
     public class NoteTabViewModel : BaseViewModel
     {
-        private readonly INoteService _noteService;
         private readonly IDocumentImportService _documentImportService;
         private readonly QuestionListViewModel _questionListVM;
         private readonly MainViewModel _mainViewModel;
@@ -183,7 +182,6 @@ namespace WPF.ViewModels.Notes
             INoteShareService noteShareService)
         {
             _note = note ?? throw new ArgumentNullException(nameof(note));
-            _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
             _questionListVM = questionListVM ?? throw new ArgumentNullException(nameof(questionListVM));
             _documentImportService = documentImportService ?? throw new ArgumentNullException(nameof(documentImportService));
             _noteShareService = noteShareService ?? throw new ArgumentNullException(nameof(noteShareService));

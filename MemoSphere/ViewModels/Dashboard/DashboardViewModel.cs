@@ -135,7 +135,6 @@ namespace WPF.ViewModels.Dashboard
             catch (Exception ex)
             {
                 ErrorMessage = "Hiba történt az adatok betöltése során.";
-                // TODO: Log the exception
                 ResetTotals();
             }
             finally

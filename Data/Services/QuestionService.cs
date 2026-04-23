@@ -74,7 +74,6 @@ namespace Data.Services
                 return false;
             }
 
-            // DEBUG: Chunk információk kiírása
             Console.WriteLine($"=== DEBUG INFO ===");
             Console.WriteLine($"Jegyzet hossza: {note.Content?.Length ?? 0} karakter");
             Console.WriteLine($"Chunk-ok száma: {chunks.Count}");
@@ -85,7 +84,6 @@ namespace Data.Services
 
             var questionsToAdd = new List<Question>();
 
-            // Optimalizálás: kis chunk-okat egyesítjük, nagyokat párhuzamosan dolgozzuk fel
             var chunksToProcess = OptimizeChunks(chunks);
 
             Console.WriteLine($"Batch-ek száma az optimalizálás után: {chunksToProcess.Count}");
@@ -95,7 +93,6 @@ namespace Data.Services
                 Console.WriteLine($"  - Batch {i + 1}: {chunksToProcess[i].Count} chunk, összesen {totalChars} karakter");
             }
 
-            // Párhuzamos feldolgozás limittel
             var semaphore = new SemaphoreSlim(MaxParallelTasks);
             var tasks = chunksToProcess.Select(async chunkGroup =>
             {
@@ -130,7 +127,6 @@ namespace Data.Services
 
             try
             {
-                // Ahelyett, hogy itt context-eznénk, meghívjuk a saját metódusunkat
                 await SaveQuestionsAsync(questionsToAdd);
                 Console.WriteLine($"{questionsToAdd.Count} kérdés sikeresen elmentve.");
                 return true;
@@ -497,9 +493,8 @@ namespace Data.Services
 
             using var context = _factory.CreateDbContext();
 
-            // Lekérjük az összes kérdést ehhez a jegyzethez
             var questions = await context.Questions
-                .Include(q => q.Answers) // ← FONTOS: Válaszokat is töröljük!
+                .Include(q => q.Answers)
                 .Where(q => q.UserId == userId && q.SourceNoteId == noteId)
                 .ToListAsync();
 

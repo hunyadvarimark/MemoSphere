@@ -67,7 +67,7 @@ namespace MemoSphere.Data.Services
 
         private async Task<string> ProcessTextInChunksAsync(string rawText)
         {
-            const int OptimalChunkSize = 3000;  // Kisebb a token hiba ellen
+            const int OptimalChunkSize = 3000;
             if (rawText.Length <= OptimalChunkSize)
             {
                 Console.WriteLine("⚡ Rövid szöveg, egy lépésben...");
@@ -95,7 +95,7 @@ namespace MemoSphere.Data.Services
                 }
                 if (batchEnd < chunks.Count)
                 {
-                    await Task.Delay(50); // Csökkentve
+                    await Task.Delay(50);
                 }
             }
             return string.Join("\n\n", cleanedChunks.Where(c => !string.IsNullOrWhiteSpace(c)));
@@ -144,43 +144,25 @@ Ne írj semmit mást, csak a formázott szöveget!
             {
                 var result = await _questionGeneratorService.CleanupAndFormatNoteAsync(prompt);
 
-                // Ha az AI bármit visszaad, ami nem üres, azt fogadjuk el.
-                // Az IsMeaningfullyDifferent ellenőrzés felesleges és káros.
+
                 if (!string.IsNullOrWhiteSpace(result))
                 {
-                    return PostProcess(result); // Bízzunk az AI eredményében
+                    return PostProcess(result);
                 }
 
-                // Ha az AI tényleg üres stringet adott, csak akkor van baj
                 Console.WriteLine("⚠️ AI üres válasszal tért vissza, fallback...");
                 return null;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ AI hívás hiba: {ex.Message}, fallback...");
-                return null; // Hiba esetén is fallback
+                return null;
             }
         }
 
         private bool ContainsComplexContent(string text)
         {
             return Regex.IsMatch(text, @"\$|\\\[|\\\(|[a-záűőúöüóéí][A-ZÁŰŐÚÖÜÓÉÍ]", RegexOptions.Compiled);
-        }
-
-        private bool IsMeaningfullyDifferent(string original, string formatted)
-        {
-            bool hasMarkdown = formatted.Contains("##") ||
-                              formatted.Contains("**") ||
-                              formatted.Contains("$$") ||
-                              (formatted.Contains("$") && formatted.Split('$').Length > 2);
-            if (hasMarkdown)
-                return true;
-            double lengthRatio = (double)formatted.Length / original.Length;
-            bool expandedWithFormatting = lengthRatio > 1.1 && lengthRatio < 1.5;
-            int originalSpaces = original.Count(c => c == ' ');
-            int formattedSpaces = formatted.Count(c => c == ' ');
-            bool fixedSpaces = formattedSpaces > originalSpaces * 1.2;
-            return hasMarkdown || expandedWithFormatting || fixedSpaces;
         }
 
         private string PostProcess(string text)
@@ -257,7 +239,6 @@ Ne írj semmit mást, csak a formázott szöveget!
                 chunks.Add(currentChunk.ToString().Trim());
             }
 
-            // Fallback: Ha egyetlen bekezdés önmagában nagyobb mint a limit
             if (chunks.Count == 1 && chunks[0].Length > maxChunkSize)
             {
                 return SplitBySentences(chunks[0], maxChunkSize);

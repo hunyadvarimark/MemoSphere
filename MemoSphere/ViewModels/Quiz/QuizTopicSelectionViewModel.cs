@@ -1,9 +1,7 @@
-﻿// ViewModels/Quiz/QuizTopicSelectionViewModel.cs
-using Core.Interfaces.Services;
+﻿using Core.Interfaces.Services;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.Linq;
-using System.Threading.Tasks;
+
 using System.Windows;
 using WPF.Utilities;
 using WPF.ViewModels.Topics;
@@ -78,7 +76,6 @@ namespace WPF.ViewModels.Quiz
 
                 var selectableVM = new SelectableTopicViewModel(topicVM);
 
-                // Adatbetöltés a kártyához
                 selectableVM.QuestionCount = await _quizService.GetQuestionCountForTopicsAsync(new List<int> { t.Id });
                 selectableVM.MasteryPercentage = await _activeLearningService.GetMasteryPercentageAsync(t.Id);
 
@@ -87,16 +84,14 @@ namespace WPF.ViewModels.Quiz
                     selectableVM.IsSelected = true;
                 }
 
-                // Feliratkozunk az IsSelected változásra
                 selectableVM.PropertyChanged += SelectableTopic_PropertyChanged;
                 SelectableTopics.Add(selectableVM);
             }
 
-            UpdateSelectedCount(); // Kezdeti számolás
+            UpdateSelectedCount();
             StartSelectedQuizCommand.RaiseCanExecuteChanged();
         }
 
-        // --- Gyors Műveletek ---
         private void SelectAll(object obj)
         {
             foreach (var item in SelectableTopics) item.IsSelected = true;
@@ -106,7 +101,6 @@ namespace WPF.ViewModels.Quiz
             foreach (var item in SelectableTopics) item.IsSelected = false;
         }
 
-        // --- Kijelölés számolása ---
         private void SelectableTopics_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.NewItems != null)
@@ -131,13 +125,11 @@ namespace WPF.ViewModels.Quiz
         private void UpdateSelectedCount()
         {
             SelectedCount = SelectableTopics.Count(t => t.IsSelected);
-            // Frissítjük a gomb állapotát
             StartSelectedQuizCommand.RaiseCanExecuteChanged();
         }
 
         private bool CanStartSelectedQuiz(object arg)
         {
-            // Most már a SelectedCount-tól függ
             return SelectedCount > 0;
         }
 
@@ -154,7 +146,7 @@ namespace WPF.ViewModels.Quiz
                 return;
             }
 
-            _mainVM.CurrentMainView = MainViewType.Browser; // Váltsunk vissza a böngészőre
+            _mainVM.CurrentMainView = MainViewType.Browser;
 
             await _quizVM.LoadQuizCommand.ExecuteAsync(selectedTopicIds);
 

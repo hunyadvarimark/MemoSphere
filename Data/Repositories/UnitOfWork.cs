@@ -28,14 +28,14 @@ public class UnitOfWork : IUnitOfWork
     public IGenericRepository<NoteChunk> NoteChunks { get; }
     public IGenericRepository<QuestionStatistic> QuestionStatistics { get; private set; }
 
+    public void Dispose()
+    {
+        throw new NotImplementedException();
+    }
+
     public async Task<int> SaveChangesAsync()
     {
         // Mivel a repository-k önállóan mentenek, itt nincs mit tenni
         return 0;
-    }
-
-    public void Dispose()
-    {
-        // Nincs mit dispose-olni, mivel nincs shared context
     }
 }

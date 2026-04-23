@@ -36,13 +36,13 @@ namespace WPF.ViewModels.Questions
             Questions.Clear();
             if (noteId > 0)
             {
-                var questions = await _questionService.GetQuestionsForNoteAsync(noteId); // Feltételezve, hogy van ilyen metódusod
+                var questions = await _questionService.GetQuestionsForNoteAsync(noteId);
                 foreach (var q in questions)
                 {
                     Questions.Add(q);
                 }
             }
-            GenerateQuestionsCommand.RaiseCanExecuteChanged(); // Frissítjük a gomb állapotát
+            GenerateQuestionsCommand.RaiseCanExecuteChanged();
         }
         private bool CanGenerateQuestions(object parameter)
         {

@@ -10,7 +10,7 @@ namespace Data.Services
     public class SubjectService : ISubjectService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IAuthService _authService;  // Inject auth service
+        private readonly IAuthService _authService;
 
         public SubjectService(IUnitOfWork unitOfWork, IAuthService authService)
         {
@@ -18,13 +18,12 @@ namespace Data.Services
             _authService = authService;
         }
 
-        // Add a new subject
         public async Task<Subject> AddSubjectAsync(string title)
         {
             Guid userId;
             try
             {
-                userId = _authService.GetCurrentUserId();  // Get current user ID
+                userId = _authService.GetCurrentUserId();
                 Console.WriteLine($"Adding subject '{title}' for user: {userId}");
             }
             catch (Exception ex)
@@ -48,22 +47,20 @@ namespace Data.Services
             var subject = new Subject
             {
                 Title = title,
-                UserId = userId  // Set UserId
+                UserId = userId
             };
 
             await _unitOfWork.Subjects.AddAsync(subject);
-            // Távolítsuk el, mivel a repository ment
 
             return subject;
         }
 
-        // Delete a subject by id
         public async Task DeleteSubjectAsync(int id)
         {
             Guid userId;
             try
             {
-                userId = _authService.GetCurrentUserId();  // Get current user ID
+                userId = _authService.GetCurrentUserId();
             }
             catch (Exception ex)
             {
@@ -73,13 +70,12 @@ namespace Data.Services
 
             var subjectToDelete = await _unitOfWork.Subjects.GetByIdAsync(id);
 
-            if (subjectToDelete == null || subjectToDelete.UserId != userId)  // Check if belongs to user
+            if (subjectToDelete == null || subjectToDelete.UserId != userId)
             {
                 throw new ArgumentException("A megadott azonosítóval nem található tantárgy vagy nincs jogosultság.", nameof(id));
             }
 
             _unitOfWork.Subjects.Remove(subjectToDelete);
-            // Távolítsuk el, mivel a Remove ment
         }
 
         // Get a subject by id
@@ -163,7 +159,7 @@ namespace Data.Services
             var subjects = await _unitOfWork.Subjects.GetFilteredAsync(
                 filter: s => s.Title.ToLower() == lowerTitle &&
                               (!excludeId.HasValue || s.Id != excludeId.Value) &&
-                              s.UserId == userId  // Filter by user
+                              s.UserId == userId
             );
 
             return subjects.Any();
@@ -183,23 +179,22 @@ namespace Data.Services
                 throw;
             }
 
-            var existing = await GetSubjectByIdAsync(subject.Id);  // Használja a filteres Get-et
+            var existing = await GetSubjectByIdAsync(subject.Id);
             if (existing == null)
             {
                 throw new ArgumentException("A tantárgy nem található vagy nincs jogosultság.", nameof(subject.Id));
             }
 
-            existing.Title = subject.Title;  // Update fields
+            existing.Title = subject.Title;
 
             _unitOfWork.Subjects.Update(existing);
-            // Távolítsuk el, mivel az Update ment
             return existing;
         }
         public async Task<Subject> GetSubjectWithHierarchyAsync(int id)
         {
             return (await _unitOfWork.Subjects.GetFilteredAsync(
                 filter: s => s.Id == id,
-                includeProperties: "Topics.Notes.Questions.Answers" // Behozza a teljes fát!
+                includeProperties: "Topics.Notes.Questions.Answers"
             )).FirstOrDefault();
         }
     }

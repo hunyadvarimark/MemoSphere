@@ -24,7 +24,6 @@ namespace Data.Services
         {
             try
             {
-                // KRITIKUS: Töröljük a régi session-t, hogy új bejelentkezést kényszerítsünk
                 Debug.WriteLine("=== Session törlése OAuth URL generálás előtt ===");
 
                 var currentSession = _supabaseClient.Auth.CurrentSession;
@@ -33,17 +32,14 @@ namespace Data.Services
                 Debug.WriteLine($"Session előtte: {(currentSession != null ? "VAN" : "NINCS")}");
                 Debug.WriteLine($"User előtte: {(currentUser != null ? currentUser.Email : "NINCS")}");
 
-                // SignOut hívása
                 await _supabaseClient.Auth.SignOut();
 
-                // Ellenőrizzük, hogy valóban törlődött-e
                 currentSession = _supabaseClient.Auth.CurrentSession;
                 currentUser = _supabaseClient.Auth.CurrentUser;
 
                 Debug.WriteLine($"Session utána: {(currentSession != null ? "VAN" : "NINCS")}");
                 Debug.WriteLine($"User utána: {(currentUser != null ? currentUser.Email : "NINCS")}");
 
-                // Kis várakozás, hogy a Supabase kliens feldolgozza a SignOut-ot
                 await Task.Delay(500);
 
                 var redirectUrl = "memosphere://auth/callback";
@@ -85,7 +81,6 @@ namespace Data.Services
 
                 Debug.WriteLine("Session sikeresen beállítva!");
 
-                // Ellenőrizzük, hogy valóban be van-e állítva
                 var currentUser = _supabaseClient.Auth.CurrentUser;
                 if (currentUser != null)
                 {
@@ -194,7 +189,6 @@ namespace Data.Services
                 return false;
             }
 
-            // Ellenőrizzük a lejárati időt
             var expiresAt = session.ExpiresAt();
             if (expiresAt <= DateTime.Now)
             {

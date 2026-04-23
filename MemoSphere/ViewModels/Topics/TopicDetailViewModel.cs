@@ -63,7 +63,6 @@ namespace WPF.ViewModels.Topics
             Topic topicToSave = _currentTopic ?? new Topic { SubjectId = _parentSubjectId };
             topicToSave.Title = trimmedTitle;
 
-            // Event kiváltása - a MainViewModel fogja lekezelni a mentést és a reset-et
             TopicSavedRequested?.Invoke(topicToSave);
 
             return Task.CompletedTask;
@@ -72,7 +71,7 @@ namespace WPF.ViewModels.Topics
         private void ExecuteCancel(object parameter)
         {
             CancelRequested?.Invoke();
-            ResetState(_parentSubjectId); // Reset a modal bezárásakor
+            ResetState(_parentSubjectId);
         }
     }
 }

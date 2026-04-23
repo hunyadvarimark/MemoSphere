@@ -1,9 +1,6 @@
 ﻿using Core.Entities;
 using Core.Enums;
 using Core.Interfaces.Services;
-using Data.Services;
-using System.Windows;
-using Microsoft.Win32;
 using WPF.Utilities;
 
 namespace WPF.ViewModels.Notes
@@ -75,12 +72,10 @@ namespace WPF.ViewModels.Notes
             NoteTitle = note?.Title ?? string.Empty;
             NoteContent = note?.Content ?? string.Empty;
 
-            // KRITIKUS: Csak akkor állítjuk be a TopicId-t, ha van note
             if (note != null)
             {
                 SelectedTopicId = note.TopicId;
             }
-            // Ha note == null, akkor NEM írjuk felül a már beállított SelectedTopicId-t!
 
             SaveNoteCommand.RaiseCanExecuteChanged();
             DeleteNoteCommand.RaiseCanExecuteChanged();

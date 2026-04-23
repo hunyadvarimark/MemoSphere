@@ -70,7 +70,7 @@ namespace Data.Services
 
             var topics = await _unitOfWork.Topics.GetFilteredAsync(
                 filter: t => t.Id == id,
-                includeProperties: "Subject" // Betöltjük a Subject entitást
+                includeProperties: "Subject"
             );
             var topicToDelete = topics.FirstOrDefault();
 
@@ -79,24 +79,18 @@ namespace Data.Services
                 throw new ArgumentException("A megadott témakör nem található vagy nincs jogosultság.", nameof(id));
             }
 
-            // Tranzakció indítása a kapcsolódó adatok (jegyzetek, kérdések, válaszok) atomi törléséhez.
             using var context = _factory.CreateDbContext();
             await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                // 1. Töröljük a felhasználó jegyzeteit a témához
                 var notesToDelete = await context.Notes
                     .Where(n => n.TopicId == id && n.UserId == userId)
                     .ToListAsync();
 
-                // 2. Töröljük a témához tartozó kérdéseket.
-                // Itt nem kell ellenőrizni a UserId-t, mivel a topicToDelete ellenőrzés már megtörtént, 
-                // de a tiszta biztonság kedvéért érdemes lehet az ellenőrzést hagyni, ahogy az eredeti kódban volt:
                 var questionsToDelete = await context.Questions
                     .Where(q => q.TopicId == id && q.Topic.Subject.UserId == userId)
                     .ToListAsync();
 
-                // 3. Töröljük a válaszokat a törlendő kérdésekhez.
                 foreach (var question in questionsToDelete)
                 {
                     var answersToDelete = await context.Answers
@@ -105,11 +99,9 @@ namespace Data.Services
                     context.Answers.RemoveRange(answersToDelete);
                 }
 
-                // Töröljük a kérdéseket és a jegyzeteket
                 context.Notes.RemoveRange(notesToDelete);
                 context.Questions.RemoveRange(questionsToDelete);
 
-                // 4. Töröljük magát a témát
                 context.Topics.Remove(topicToDelete);
 
                 await context.SaveChangesAsync();

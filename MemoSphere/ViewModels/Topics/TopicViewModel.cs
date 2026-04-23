@@ -1,5 +1,4 @@
 ﻿using Core.Entities;
-using WPF.Utilities;
 
 namespace WPF.ViewModels.Topics
 {

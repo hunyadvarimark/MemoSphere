@@ -1,7 +1,5 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
-using Data.Services;
-using MemoSphere.Data.Services;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
@@ -210,14 +208,6 @@ namespace WPF.ViewModels
             }, _ => SubjectsVM.SelectedSubject != null);
             AddNewNoteCommand = new RelayCommand(_ => CreateNewNote(), _ => TopicsVM.SelectedTopic != null);
             ToggleNoteListCommand = new RelayCommand(_ => IsNoteListVisible = !IsNoteListVisible);
-            StartQuizCommand = new RelayCommand(
-                async _ => await OpenQuizSelectionModalAsync(),
-                _ =>
-                {
-                    var canExecute = SubjectsVM.SelectedSubject != null && !IsQuizActive;
-                    return canExecute;
-                }
-            );
             CloseQuizCommand = new RelayCommand(
                 _ => IsQuizActive = false,
                 _ => IsQuizActive
@@ -598,7 +588,6 @@ namespace WPF.ViewModels
             CurrentUserEmail = _authService.GetCurrentUserEmail() ?? "Ismeretlen";
             System.Diagnostics.Debug.WriteLine($"👤 Current user email: {CurrentUserEmail}");
             await SubjectsVM.LoadSubjectsAsync();
-            // Hozzáadva: Dashboard inicializálása az app indításakor
             await DashboardVM.LoadDashboardDataAsync();
             if (SubjectsVM.Subjects.Any())
             {

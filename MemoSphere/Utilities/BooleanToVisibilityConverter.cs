@@ -73,11 +73,10 @@ namespace WPF.Utilities
             }
             else if (value is int i)
             {
-                // Ha a szám (pl. Count) nagyobb 0-nál, az 'true'
+
                 boolValue = (i > 0);
             }
 
-            // A normál konverterrel ellentétben itt a 'true'-ra Collapsed-et adunk
             return boolValue ? Visibility.Collapsed : Visibility.Visible;
         }
 

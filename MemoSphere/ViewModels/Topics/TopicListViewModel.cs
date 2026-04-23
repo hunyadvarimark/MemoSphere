@@ -1,12 +1,9 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
-using MemoSphere.Data.Services;
 using Microsoft.Win32;
 using System.Collections.ObjectModel;
 using System.Windows;
 using WPF.Utilities;
-using WPF.ViewModels.Dashboard;
-using WPF.ViewModels.Subjects;
 
 namespace WPF.ViewModels.Topics
 {
@@ -232,13 +229,10 @@ namespace WPF.ViewModels.Topics
             {
                 try
                 {
-                    // Meghívjuk a szervizt a fájl elérési útjával és a kijelölt Topic ID-val
                     await _noteShareService.ImportNoteFromFileAsync(openFileDialog.FileName, SelectedTopic.Id);
 
                     MessageBox.Show("Jegyzet sikeresen beimportálva!", "Siker", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    // Itt fontos frissíteni a jegyzetek listáját, hogy látszódjon az új elem!
-                    // Ha van NoteListViewModel referenciád, hívd meg a frissítését.
                 }
                 catch (Exception ex)
                 {

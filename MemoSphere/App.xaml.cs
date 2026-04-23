@@ -181,7 +181,7 @@ namespace MemoSphere.WPF
                 {
                     Debug.WriteLine("✉️ Email confirmation callback észlelve!");
                     await HandleEmailConfirmationCallback(argument);
-                    return; // NE folytassuk a normál indítást
+                    return; 
                 }
             }
 
@@ -256,7 +256,6 @@ namespace MemoSphere.WPF
                         Debug.WriteLine($"❌ SignOut hiba: {ex.Message}");
                     }
 
-                    // LoginWindow megnyitása - Itt is try-catch, ha kell
                     try
                     {
                         var loginWindow = _host.Services.GetRequiredService<LoginWindow>();
@@ -302,7 +301,6 @@ namespace MemoSphere.WPF
 
                 var authService = _host.Services.GetRequiredService<IAuthService>();
 
-                // URL parsing: memosphere://auth/callback#access_token=...&refresh_token=...
                 var uri = new Uri(callbackUrl);
                 var fragment = uri.Fragment.TrimStart('#');
 

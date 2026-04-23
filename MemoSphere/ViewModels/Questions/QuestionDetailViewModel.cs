@@ -118,7 +118,7 @@ namespace WPF.ViewModels.Questions
             QuestionType = questionToEdit?.QuestionType ?? QuestionType.MultipleChoice;
             CorrectAnswer = questionToEdit?.Answers?.FirstOrDefault(a => a.IsCorrect)?.Text ?? string.Empty;
             TopicId = questionToEdit?.TopicId ?? 0;
-            NoteId = questionToEdit?.SourceNoteId; // Betöltjük a NoteId-t is
+            NoteId = questionToEdit?.SourceNoteId;
 
             Options.Clear();
             if (questionToEdit?.Answers != null)
@@ -191,7 +191,6 @@ namespace WPF.ViewModels.Questions
                 if (success)
                 {
                     MessageBox.Show($"{type} típusú kérdések sikeresen generálva!", "Siker", MessageBoxButton.OK, MessageBoxImage.Information);
-                    // Itt érdemes lenne egy eseményt dobni, hogy a UI frissüljön
                 }
             }
             catch (Exception ex)

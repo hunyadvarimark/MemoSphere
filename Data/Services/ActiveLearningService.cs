@@ -2,10 +2,7 @@
 using Core.Interfaces.Services;
 using Data.Context;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System;
+
 
 namespace Data.Services
 {

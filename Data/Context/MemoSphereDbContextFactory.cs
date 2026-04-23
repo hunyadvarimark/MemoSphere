@@ -13,8 +13,7 @@ namespace Data.Context
             IConfigurationRoot configuration = new ConfigurationBuilder()
                 .SetBasePath(basePath)
                 .AddJsonFile("appsettings.json", optional: true)
-                // .AddUserSecrets("4aa70949-6fcd-46fa-8050-04c29ca3a14d") // ← ELTÁVOLÍTVA
-                .AddEnvironmentVariables() // Ez marad, environment variable-ekből olvassa
+                .AddEnvironmentVariables()
                 .Build();
 
             var connectionString =

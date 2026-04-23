@@ -36,11 +36,10 @@ namespace MemoSphere.Data.Services
 
         public async Task ExportNoteToFileAsync(int noteId, string filePath)
         {
-            // Olyan metódust használunk, ami beemeli a kérdéseket is a navigációs tulajdonságon keresztül
+
             var note = await _noteService.GetNoteByIdAsync(noteId);
             if (note == null) throw new Exception("A jegyzet nem található.");
 
-            // Ha a NoteService.GetNoteByIdAsync nem hozza a Questions-t, itt manuálisan lekérjük
             var questions = await _questionService.GetQuestionsForNoteAsync(noteId);
 
             var exportDto = new NoteExportDto
@@ -64,7 +63,7 @@ namespace MemoSphere.Data.Services
 
         public async Task ExportTopicToFileAsync(int topicId, string filePath)
         {
-            var topic = await _topicService.GetTopicWithHierarchyAsync(topicId); //
+            var topic = await _topicService.GetTopicWithHierarchyAsync(topicId); 
             if (topic == null) throw new Exception("Témakör nem található.");
 
             var exportDto = MapTopicToDto(topic);
@@ -73,7 +72,7 @@ namespace MemoSphere.Data.Services
 
         public async Task ExportSubjectToFileAsync(int subjectId, string filePath)
         {
-            var subject = await _subjectService.GetSubjectWithHierarchyAsync(subjectId); //
+            var subject = await _subjectService.GetSubjectWithHierarchyAsync(subjectId);
             if (subject == null) throw new Exception("Tantárgy nem található.");
 
             var exportDto = new SubjectExportDto
@@ -106,7 +105,6 @@ namespace MemoSphere.Data.Services
 
             if (dto == null) throw new Exception("Érvénytelen témakör fájl.");
 
-            // 1. Témakör létrehozása
             var newTopic = await _topicService.AddTopicAsync(new Topic
             {
                 Title = dto.Title,
@@ -114,7 +112,6 @@ namespace MemoSphere.Data.Services
                 UserId = userId
             });
 
-            // 2. Jegyzetek és kérdések létrehozása
             foreach (var noteDto in dto.Notes)
             {
                 await CreateNoteFromDtoAsync(noteDto, newTopic.Id, userId);
@@ -129,10 +126,8 @@ namespace MemoSphere.Data.Services
 
             if (dto == null) throw new Exception("Érvénytelen tantárgy fájl.");
 
-            // 1. Tantárgy létrehozása
             var newSubject = await _subjectService.AddSubjectAsync(dto.Title);
 
-            // 2. Témakörök bejárása
             foreach (var topicDto in dto.Topics)
             {
                 var newTopic = await _topicService.AddTopicAsync(new Topic
@@ -195,7 +190,6 @@ namespace MemoSphere.Data.Services
         {
             Title = n.Title,
             Content = n.Content,
-            // Feltételezzük, hogy a Questions be van töltve az Include-al
             Questions = n.Questions?.Select(q => new QuestionExportDto
             {
                 Text = q.Text,

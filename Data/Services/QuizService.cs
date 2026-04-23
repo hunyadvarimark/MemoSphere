@@ -38,7 +38,6 @@ namespace Core.Services
             var validTopicIds = topicIds.Take(3).ToList();
             var allSelectedQuestions = new List<Question>();
 
-            // Minden témából arányosan kérünk kérdéseket
             int questionsPerTopic = Math.Max(1, count / validTopicIds.Count);
             int remainder = count % validTopicIds.Count;
 
@@ -49,18 +48,16 @@ namespace Core.Services
 
                 Debug.WriteLine($"📚 Fetching {questionsToFetch} weighted questions from Topic {topicId}");
 
-                // ✅ SÚLYOZOTT KÉRDÉSEK LEKÉRÉSE
                 var weightedQuestions = await _questionService.GetWeightedQuestionsAsync(
                     topicId: topicId,
                     count: questionsToFetch,
-                    type: null // Minden típus
+                    type: null
                 );
 
                 allSelectedQuestions.AddRange(weightedQuestions);
                 Debug.WriteLine($"   ✓ Got {weightedQuestions.Count} questions");
             }
 
-            // Ha kevesebb jött vissza, mint amennyit kértünk, kiegészítjük a maradékkal
             if (allSelectedQuestions.Count < count)
             {
                 int missing = count - allSelectedQuestions.Count;
@@ -74,7 +71,6 @@ namespace Core.Services
                         type: null
                     );
 
-                    // Csak azokat adjuk hozzá, amelyek még nincsenek benne
                     var newQuestions = extraQuestions
                         .Where(q => !allSelectedQuestions.Any(existing => existing.Id == q.Id))
                         .Take(missing)
@@ -87,7 +83,6 @@ namespace Core.Services
                 }
             }
 
-            // Véletlenszerű sorrendbe rakjuk (hogy ne mindig ugyanabban a sorrendben jöjjenek)
             var random = new Random();
             var shuffledQuestions = allSelectedQuestions
                 .OrderBy(q => random.Next())
@@ -128,7 +123,6 @@ namespace Core.Services
                 Debug.WriteLine($"❌ Error counting questions: {ex.Message}");
                 Debug.WriteLine($"   StackTrace: {ex.StackTrace}");
 
-                // Fallback: próbáljuk UserId nélkül
                 var topicFilterCount = await _unitOfWork.Questions.CountAsync(
                     q => topicIds.Contains(q.TopicId) && q.IsActive
                 );

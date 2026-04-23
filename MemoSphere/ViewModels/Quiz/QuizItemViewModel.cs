@@ -40,7 +40,6 @@ namespace WPF.ViewModels.Quiz
             }
         }
 
-        // Tulajdonságok a Binding-hez
         public Answer SelectedAnswer
         {
             get => _selectedAnswer;
@@ -70,18 +69,11 @@ namespace WPF.ViewModels.Quiz
             {
                 if (!IsAnswerSubmitted)
                     return false;
-
-                // --- RÖVID VÁLASZ LOGIKA ---
                 if (IsShortAnswer)
                 {
-                    // 1. Üres válasz kizárása
                     if (string.IsNullOrWhiteSpace(UserAnswerText)) return false;
-
-                    // 2. A kiértékelés eredményének visszaadása
-                    // Csak akkor ad true-t, ha az LLM már kiértékelte, és az eredmény true.
                     return _evalResult ?? false;
                 }
-                // --- FELELETVÁLASZTÓS LOGIKA ---
                 else
                 {
                     return SelectedAnswer?.IsCorrect ?? false;

@@ -22,8 +22,8 @@ namespace WPF.ViewModels.Quiz
         private readonly DispatcherTimer _timer;
 
         // --- Beállítások ---
-        private const int SecondsPerStandardQuestion = 60; // 1 perc kérdésenként
-        private const int SecondsPerShortAnswerQuestion = 180; // 3 perc a kifejtősnél
+        private const int SecondsPerStandardQuestion = 60;
+        private const int SecondsPerShortAnswerQuestion = 180;
         private const int MaxQuestionsPerNoteQuiz = 10;
 
         private readonly int _requiredQuestionCount = 10;
@@ -389,9 +389,9 @@ namespace WPF.ViewModels.Quiz
         {
             try
             {
-                // Csoportosítjuk a kérdéseket topic szerint
+
                 var topicGroups = QuizItems
-                    .Where(item => item.IsAnswerSubmitted) // Csak a megválaszolt kérdések
+                    .Where(item => item.IsAnswerSubmitted)
                     .GroupBy(item => item.Question.TopicId)
                     .ToList();
 
@@ -401,12 +401,10 @@ namespace WPF.ViewModels.Quiz
                 {
                     int topicId = topicGroup.Key;
 
-                    // Csak a helyes válaszokat számoljuk a haladáshoz
                     var correctAnswers = topicGroup.Count(item => item.IsCorrect);
 
                     Debug.WriteLine($"📚 Topic {topicId}: {correctAnswers} helyes válasz {topicGroup.Count()}-ból");
 
-                    // Minden helyes válaszért frissítjük a haladást
                     for (int i = 0; i < correctAnswers; i++)
                     {
                         try

@@ -1,6 +1,4 @@
-﻿// ViewModels/Quiz/SelectableTopicViewModel.cs
-using System.Windows.Input;
-using WPF.Utilities;
+﻿using WPF.Utilities;
 using WPF.ViewModels.Topics;
 
 namespace WPF.ViewModels.Quiz

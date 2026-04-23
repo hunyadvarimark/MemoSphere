@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using WPF.ViewModels.Notes;
+﻿using WPF.ViewModels.Notes;
 using WPF.ViewModels.Questions;
 using WPF.ViewModels.Quiz;
 using WPF.ViewModels.Subjects;
@@ -38,12 +34,10 @@ public class HierarchyCoordinator
         // Subject → Topic
         _subjectsVM.SubjectSelected += async selectedSubjectVM =>
         {
-            // Távolítsuk el a Task.Yield()-et – felesleges és ronthat az async flow-n
             if (selectedSubjectVM != null)
             {
                 await _topicsVM.LoadTopicsAsync(selectedSubjectVM.Id);
 
-                // 💡 JAVÍTÁS 1: Kiválasztjuk az első témakört, ha van.
                 if (_topicsVM.Topics.Any())
                 {
                     _topicsVM.SelectedTopic = _topicsVM.Topics.First();
@@ -67,7 +61,6 @@ public class HierarchyCoordinator
         _topicsVM.TopicSelected += async selectedTopicVM =>
         {
             _noteDetailVM.SetCurrentNote(null);
-            // Távolítsuk el a Task.Yield()-et
 
             var selectedIds = new List<int>();
 
@@ -76,7 +69,6 @@ public class HierarchyCoordinator
                 _noteDetailVM.SelectedTopicId = selectedTopicVM.Id;
                 await _notesVM.LoadNotesAsync(selectedTopicVM.Id);
 
-                // 💡 JAVÍTÁS 2: Kiválasztjuk az első jegyzetet, ha van.
                 if (_notesVM.Notes.Any())
                 {
                     _notesVM.SelectedNote = _notesVM.Notes.First();
