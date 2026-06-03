@@ -1,9 +1,12 @@
 ﻿using Core.Entities;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+
 
 namespace Data.Context
 {
-    public class MemoSphereDbContext : DbContext
+    public class MemoSphereDbContext : IdentityDbContext<IdentityUser<Guid>, IdentityRole<Guid>, Guid>
     {
         public DbSet<Subject> Subjects { get; set; }
         public DbSet<Topic> Topics { get; set; }
@@ -22,6 +25,8 @@ namespace Data.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
+
             modelBuilder.Entity<Subject>().Property(s => s.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<Topic>().Property(t => t.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<Note>().Property(n => n.Id).ValueGeneratedOnAdd();
@@ -29,6 +34,30 @@ namespace Data.Context
             modelBuilder.Entity<Answer>().Property(a => a.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<NoteChunk>().Property(nc => nc.Id).ValueGeneratedOnAdd();
             modelBuilder.Entity<QuestionStatistic>().Property(qs => qs.Id).ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<Subject>()
+                .HasOne<IdentityUser<Guid>>()
+                .WithMany()
+                .HasForeignKey(s => s.UserId) 
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<QuestionStatistic>()
+                .HasOne<IdentityUser<Guid>>()
+                .WithMany()
+                .HasForeignKey(qs => qs.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ActiveTopic>()
+                .HasOne<IdentityUser<Guid>>()
+                .WithMany()
+                .HasForeignKey(at => at.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<DailyProgress>()
+                .HasOne<IdentityUser<Guid>>()
+                .WithMany()
+                .HasForeignKey(dp => dp.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Question>()
                 .HasMany(q => q.Answers)
@@ -39,7 +68,7 @@ namespace Data.Context
             modelBuilder.Entity<Question>()
                 .HasOne(q => q.SourceNote)
                 .WithMany(n => n.Questions)
-                .HasForeignKey(q => q.SourceNoteId) 
+                .HasForeignKey(q => q.SourceNoteId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<NoteChunk>()
@@ -80,8 +109,8 @@ namespace Data.Context
             modelBuilder.Entity<ActiveTopic>().Property(at => at.Id).ValueGeneratedOnAdd();
 
             modelBuilder.Entity<ActiveTopic>()
-                .HasOne(at => at.Topic) 
-                .WithMany() 
+                .HasOne(at => at.Topic)
+                .WithMany()
                 .HasForeignKey(at => at.TopicId)
                 .OnDelete(DeleteBehavior.Cascade);
 

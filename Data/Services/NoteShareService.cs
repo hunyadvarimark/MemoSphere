@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace MemoSphere.Data.Services
+namespace Data.Services
 {
     public class NoteShareService : INoteShareService
     {

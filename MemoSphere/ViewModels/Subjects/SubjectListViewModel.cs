@@ -1,7 +1,5 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
-using MemoSphere.Data.Services;
-using Microsoft.Win32;
 using System.Collections.ObjectModel;
 using System.Windows;
 using WPF.Utilities;

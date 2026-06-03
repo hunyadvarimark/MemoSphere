@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
 
-namespace MemoSphere.Data.Services
+namespace Data.Services
 {
     public class DocumentImportService : IDocumentImportService
     {

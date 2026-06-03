@@ -2,7 +2,7 @@
 using Core.Interfaces.Services;
 using System.Diagnostics;
 
-namespace Core.Services
+namespace Data.Services
 {
     public class QuizService : IQuizService
     {

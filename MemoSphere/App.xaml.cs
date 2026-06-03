@@ -1,8 +1,6 @@
 ﻿using Core.Interfaces.Services;
-using Core.Services;
 using Data.Context;
 using Data.Services;
-using MemoSphere.Data.Services;
 using MemoSphere.WPF.Views;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -29,31 +27,19 @@ namespace MemoSphere.WPF
             _host = Host.CreateDefaultBuilder()
                 .ConfigureAppConfiguration((context, builder) =>
                 {
-                    // Környezeti változók hozzáadása (ez lesz a prioritás)
                     builder.AddEnvironmentVariables();
 
-                    // User Secrets fallback-ként (opcionális, csak dev gépen)
-                    //builder.AddUserSecrets<App>(optional: true);
                 })
                 .ConfigureServices((context, services) =>
                 {
                     var configuration = context.Configuration;
 
-                    // SUPABASE CLIENT INICIALIZÁLÁS
-                    // Először környezeti változókból próbálja, ha nincs, akkor config-ból
-                    var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL")
-                                      ?? configuration["Supabase:Url"];
-                    var supabaseAnonKey = Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY")
-                                          ?? configuration["Supabase:AnonKey"];
+                    var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? configuration["Supabase:Url"];
+                    var supabaseAnonKey = Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY") ?? configuration["Supabase:AnonKey"];
 
                     if (string.IsNullOrEmpty(supabaseUrl) || string.IsNullOrEmpty(supabaseAnonKey))
                     {
-                        throw new InvalidOperationException(
-                            "Supabase URL vagy Anon Key hiányzik.\n" +
-                            "Állítsd be a következő környezeti változókat:\n" +
-                            "- SUPABASE_URL\n" +
-                            "- SUPABASE_ANON_KEY"
-                        );
+                        throw new InvalidOperationException("Supabase URL vagy Anon Key hiányzik.");
                     }
 
                     var supabaseOptions = new Supabase.SupabaseOptions
@@ -61,11 +47,9 @@ namespace MemoSphere.WPF
                         AutoConnectRealtime = false,
                         AutoRefreshToken = true,
                     };
-
                     var supabaseClient = new Supabase.Client(supabaseUrl, supabaseAnonKey, supabaseOptions);
                     services.AddSingleton(supabaseClient);
 
-                    // Windows
                     services.AddSingleton<MainWindow>();
                     services.AddTransient<LoginWindow>(sp =>
                     {
@@ -74,17 +58,13 @@ namespace MemoSphere.WPF
                         return new LoginWindow(authService, mainWindow);
                     });
 
-                    // DbContext - PostgreSQL
                     var connectionString = Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING")
-                                          ?? configuration.GetConnectionString("Supabase")
-                                          ?? configuration["Supabase:ConnectionString"];
+                                           ?? configuration.GetConnectionString("Supabase")
+                                           ?? configuration["Supabase:ConnectionString"];
 
                     if (string.IsNullOrEmpty(connectionString))
                     {
-                        throw new InvalidOperationException(
-                            "Supabase connection string hiányzik.\n" +
-                            "Állítsd be a SUPABASE_CONNECTION_STRING környezeti változót."
-                        );
+                        throw new InvalidOperationException("Supabase connection string hiányzik.");
                     }
 
                     services.AddDbContextFactory<MemoSphereDbContext>(options =>
@@ -92,38 +72,7 @@ namespace MemoSphere.WPF
                         options.UseNpgsql(connectionString);
                     });
 
-                    // Gemini Service
-                    services.AddTransient<IQuestionGeneratorService, GeminiService>(provider =>
-                    {
-                        var config = provider.GetRequiredService<IConfiguration>();
-                        var apiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY")
-                                    ?? config["GeminiApi:ApiKey"];
-
-                        if (string.IsNullOrEmpty(apiKey))
-                        {
-                            throw new InvalidOperationException(
-                                "A Gemini API kulcs hiányzik.\n" +
-                                "Állítsd be a GEMINI_API_KEY környezeti változót."
-                            );
-                        }
-
-                        return new GeminiService(apiKey);
-                    });
-
-                    // Core Services
-                    services.AddTransient<IUnitOfWork, UnitOfWork>();
-                    services.AddTransient<IQuestionService, QuestionService>();
-                    services.AddTransient<IAnswerService, AnswerService>();
-                    services.AddTransient<INoteService, NoteService>();
-                    services.AddTransient<ITopicService, TopicService>();
-                    services.AddTransient<ISubjectService, SubjectService>();
-                    services.AddTransient<IQuizService, QuizService>();
-                    services.AddTransient<IAuthService, AuthService>();
-                    services.AddTransient<IDocumentImportService>(sp =>
-                        new DocumentImportService(sp.GetRequiredService<IQuestionGeneratorService>())
-                    );
-                    services.AddTransient<IActiveLearningService, ActiveLearningService>();
-                    services.AddTransient<INoteShareService, NoteShareService>();
+                    services.AddMemoSphereServices(configuration);
 
                     // ViewModels
                     services.AddSingleton<SubjectListViewModel>();
