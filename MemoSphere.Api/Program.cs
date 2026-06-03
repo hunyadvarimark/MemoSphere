@@ -14,7 +14,11 @@ namespace MemoSphere.Api
             // Add services to the container.
             builder.Services.AddEndpointsApiExplorer();
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+                });
             builder.Services.AddSwaggerGen();
 
             var connectionString = Environment.GetEnvironmentVariable("LOCAL_DOCKER_CONNECTION_STRING")
