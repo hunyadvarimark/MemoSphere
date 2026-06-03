@@ -1,0 +1,6 @@
+@MemoSphere.Api_HostAddress = http://localhost:5169
+
+GET {{MemoSphere.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
