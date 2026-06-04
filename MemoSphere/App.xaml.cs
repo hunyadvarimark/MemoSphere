@@ -2,11 +2,14 @@
 using Data.Context;
 using Data.Services;
 using MemoSphere.WPF.Views;
+using MemoSphere.WPF.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System;
 using System.Diagnostics;
+using System.Net.Http;
 using System.Windows;
 using WPF.ViewModels;
 using WPF.ViewModels.Dashboard;
@@ -28,27 +31,17 @@ namespace MemoSphere.WPF
                 .ConfigureAppConfiguration((context, builder) =>
                 {
                     builder.AddEnvironmentVariables();
-
                 })
                 .ConfigureServices((context, services) =>
                 {
                     var configuration = context.Configuration;
 
-                    var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ?? configuration["Supabase:Url"];
-                    var supabaseAnonKey = Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY") ?? configuration["Supabase:AnonKey"];
+                    services.AddSingleton(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5000/") });
+                    var connectionString = Environment.GetEnvironmentVariable("LOCAL_DOCKER_CONNECTION_STRING")
+            ?? configuration.GetConnectionString("DefaultConnection");
 
-                    if (string.IsNullOrEmpty(supabaseUrl) || string.IsNullOrEmpty(supabaseAnonKey))
-                    {
-                        throw new InvalidOperationException("Supabase URL vagy Anon Key hiányzik.");
-                    }
-
-                    var supabaseOptions = new Supabase.SupabaseOptions
-                    {
-                        AutoConnectRealtime = false,
-                        AutoRefreshToken = true,
-                    };
-                    var supabaseClient = new Supabase.Client(supabaseUrl, supabaseAnonKey, supabaseOptions);
-                    services.AddSingleton(supabaseClient);
+                    services.AddDbContextFactory<MemoSphereDbContext>(options =>
+    options.UseNpgsql(connectionString));
 
                     services.AddSingleton<MainWindow>();
                     services.AddTransient<LoginWindow>(sp =>
@@ -58,23 +51,11 @@ namespace MemoSphere.WPF
                         return new LoginWindow(authService, mainWindow);
                     });
 
-                    var connectionString = Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING")
-                                           ?? configuration.GetConnectionString("Supabase")
-                                           ?? configuration["Supabase:ConnectionString"];
-
-                    if (string.IsNullOrEmpty(connectionString))
-                    {
-                        throw new InvalidOperationException("Supabase connection string hiányzik.");
-                    }
-
-                    services.AddDbContextFactory<MemoSphereDbContext>(options =>
-                    {
-                        options.UseNpgsql(connectionString);
-                    });
-
                     services.AddMemoSphereServices(configuration);
 
-                    // ViewModels
+
+                    services.AddSingleton<IAuthService, ClientAuthService>();
+
                     services.AddSingleton<SubjectListViewModel>();
                     services.AddSingleton<TopicListViewModel>();
                     services.AddSingleton<NoteListViewModel>();
@@ -86,7 +67,7 @@ namespace MemoSphere.WPF
                     services.AddSingleton<QuizViewModel>();
                     services.AddSingleton<DashboardViewModel>();
                     services.AddSingleton<QuizTopicSelectionViewModel>();
-                    // Coordinators és Handlers
+
                     services.AddSingleton<HierarchyCoordinator>(provider =>
                     {
                         var subjectsVM = provider.GetRequiredService<SubjectListViewModel>();
@@ -122,34 +103,8 @@ namespace MemoSphere.WPF
             await _host.StartAsync();
             Debug.WriteLine("=== Alkalmazás indítása ===");
 
-            if (e.Args.Length > 0)
-            {
-                var argument = e.Args[0];
-                Debug.WriteLine($"📧 Startup argument kapva: {argument}");
-                if (argument.StartsWith("memosphere://auth/callback"))
-                {
-                    Debug.WriteLine("✉️ Email confirmation callback észlelve!");
-                    await HandleEmailConfirmationCallback(argument);
-                    return; 
-                }
-            }
-
             try
             {
-                // Adatbázis migráció (már try-catch-ben van, de logoljuk részletesebben)
-                using (var scope = _host.Services.CreateScope())
-                {
-                    var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<MemoSphereDbContext>>();
-                    using var dbContext = factory.CreateDbContext();
-                    Debug.WriteLine("🔄 Adatbázis migráció indítása...");
-                    await dbContext.Database.MigrateAsync();
-                    Debug.WriteLine("✅ Adatbázis migráció befejezve");
-                }
-
-                // Supabase inicializálás
-                var supabaseClient = _host.Services.GetRequiredService<Supabase.Client>();
-                await supabaseClient.InitializeAsync();
-                Debug.WriteLine("✅ Supabase inicializálva");
 
                 var authService = _host.Services.GetRequiredService<IAuthService>();
                 var isAuthenticated = await authService.IsAuthenticatedAsync();
@@ -169,8 +124,9 @@ namespace MemoSphere.WPF
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"❌ Hiba a streak-ek ellenőrzésekor: {ex.Message}\nStackTrace: {ex.StackTrace}\nInnerException: {ex.InnerException?.Message}");
+                        Debug.WriteLine($"❌ Hiba a streak-ek ellenőrzésekor: {ex.Message}");
                     }
+
                     try
                     {
                         Debug.WriteLine("🖥️ MainWindow inicializálása indítása...");
@@ -183,13 +139,8 @@ namespace MemoSphere.WPF
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"❌ Hiba a MainWindow betöltése során: {ex.Message}\nStackTrace: {ex.StackTrace}\nInnerException: {ex.InnerException?.Message}");
-                        MessageBox.Show(
-                            $"Hiba az alkalmazás indításakor (MainWindow):\n\n{ex.Message}",
-                            "Kritikus hiba",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Error
-                        );
+                        Debug.WriteLine($"❌ Hiba a MainWindow betöltése során: {ex.Message}");
+                        MessageBox.Show($"Hiba az alkalmazás indításakor (MainWindow):\n\n{ex.Message}", "Kritikus hiba", MessageBoxButton.OK, MessageBoxImage.Error);
                         Shutdown();
                     }
                 }
@@ -212,134 +163,20 @@ namespace MemoSphere.WPF
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"❌ Hiba a LoginWindow megnyitásakor: {ex.Message}\nStackTrace: {ex.StackTrace}");
-                        MessageBox.Show(
-                            $"Hiba az alkalmazás indításakor (LoginWindow):\n\n{ex.Message}",
-                            "Kritikus hiba",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Error
-                        );
+                        Debug.WriteLine($"❌ Hiba a LoginWindow megnyitásakor: {ex.Message}");
+                        MessageBox.Show($"Hiba az alkalmazás indításakor (LoginWindow):\n\n{ex.Message}", "Kritikus hiba", MessageBoxButton.OK, MessageBoxImage.Error);
                         Shutdown();
                     }
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"❌ HIBA az indítás során: {ex.Message}\nStackTrace: {ex.StackTrace}\nInnerException: {ex.InnerException?.Message}");
-                MessageBox.Show(
-                    $"Hiba az alkalmazás indításakor:\n\n{ex.Message}",
-                    "Kritikus hiba",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error
-                );
+                Debug.WriteLine($"❌ HIBA az indítás során: {ex.Message}");
+                MessageBox.Show($"Hiba az alkalmazás indításakor:\n\n{ex.Message}", "Kritikus hiba", MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown();
             }
 
             base.OnStartup(e);
-        }
-
-        private async Task HandleEmailConfirmationCallback(string callbackUrl)
-        {
-            try
-            {
-                Debug.WriteLine($"📧 Email confirmation callback feldolgozása: {callbackUrl}");
-
-                // Supabase inicializálás
-                var supabaseClient = _host.Services.GetRequiredService<Supabase.Client>();
-                await supabaseClient.InitializeAsync();
-
-                var authService = _host.Services.GetRequiredService<IAuthService>();
-
-                var uri = new Uri(callbackUrl);
-                var fragment = uri.Fragment.TrimStart('#');
-
-                if (string.IsNullOrEmpty(fragment))
-                {
-                    Debug.WriteLine("❌ Callback URL, de nincs fragment (hiányzó tokenek)");
-                    MessageBox.Show(
-                        "Hibás megerősítő link. Kérlek, próbáld újra a regisztrációt.",
-                        "Email megerősítés sikertelen",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error
-                    );
-                    Shutdown();
-                    return;
-                }
-
-                // Tokenek kinyerése
-                var parameters = System.Web.HttpUtility.ParseQueryString(fragment);
-                var accessToken = parameters["access_token"];
-                var refreshToken = parameters["refresh_token"];
-
-                Debug.WriteLine($"Access Token: {(string.IsNullOrEmpty(accessToken) ? "NINCS" : "VAN")}");
-                Debug.WriteLine($"Refresh Token: {(string.IsNullOrEmpty(refreshToken) ? "NINCS" : "VAN")}");
-
-                if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(refreshToken))
-                {
-                    Debug.WriteLine("❌ Hiányzó tokenek a callback URL-ből");
-                    MessageBox.Show(
-                        "Hibás megerősítő link formátum.",
-                        "Email megerősítés sikertelen",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error
-                    );
-                    Shutdown();
-                    return;
-                }
-
-                // Session beállítása a tokenekkel
-                var success = await authService.CompleteGoogleSignInAsync(accessToken, refreshToken);
-
-                if (success)
-                {
-                    Debug.WriteLine("✅ Email megerősítés sikeres, session beállítva");
-
-                    MessageBox.Show(
-                        "Email cím sikeresen megerősítve!\n\nMost már be tudsz jelentkezni.",
-                        "Email megerősítés sikeres",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information
-                    );
-
-                    // Adatbázis migráció
-                    using (var scope = _host.Services.CreateScope())
-                    {
-                        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<MemoSphereDbContext>>();
-                        using var dbContext = factory.CreateDbContext();
-                        await dbContext.Database.MigrateAsync();
-                    }
-
-                    // MainWindow megnyitása
-                    var mainWindow = _host.Services.GetRequiredService<MainWindow>();
-                    await mainWindow.LoadDataAsync();
-                    mainWindow.Show();
-                }
-                else
-                {
-                    Debug.WriteLine("❌ Session beállítása sikertelen");
-                    MessageBox.Show(
-                        "Hiba történt az email megerősítése során.",
-                        "Email megerősítés sikertelen",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error
-                    );
-                    Shutdown();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"❌ Email confirmation callback hiba: {ex.Message}");
-                Debug.WriteLine($"StackTrace: {ex.StackTrace}");
-
-                MessageBox.Show(
-                    $"Hiba az email megerősítése során:\n\n{ex.Message}",
-                    "Hiba",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error
-                );
-
-                Shutdown();
-            }
         }
 
         protected override async void OnExit(ExitEventArgs e)

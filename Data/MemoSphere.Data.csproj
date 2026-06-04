@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="Google.Apis.Auth" Version="1.72.0" />
     <PackageReference Include="itext7" Version="9.3.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.10" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.8">
       <PrivateAssets>all</PrivateAssets>

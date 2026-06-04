@@ -19,12 +19,6 @@ namespace Data.Context
 
             var connectionString = Environment.GetEnvironmentVariable("LOCAL_DOCKER_CONNECTION_STRING");
 
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                connectionString = Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING") ??
-                                   configuration.GetConnectionString("Supabase") ??
-                                   configuration["Supabase:ConnectionString"];
-            }
 
             Console.WriteLine("==== CONNECTION STRING DEBUG ====");
             Console.WriteLine($"Connection String: {connectionString}");

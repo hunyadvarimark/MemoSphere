@@ -2,6 +2,9 @@
 using Data.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Text;
 
 namespace MemoSphere.Api
 {
@@ -37,8 +40,30 @@ namespace MemoSphere.Api
             })
                 .AddEntityFrameworkStores<MemoSphereDbContext>();
 
+            builder.Services.AddHttpContextAccessor();
+
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+                    ValidAudience = builder.Configuration["JwtSettings:Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:SecretKey"] ?? "NAGYON_TITKOS_MOCK_KULCS_AMIT_KI_KELL_CSERELNI_MAJD"))
+                };
+            });
+
             builder.Services.AddMemoSphereServices(builder.Configuration);
-            builder.Services.AddTransient<Core.Interfaces.Services.IAuthService, MemoSphere.Api.Services.ApiAuthMockService>();
+            builder.Services.AddScoped<Core.Interfaces.Services.IAuthService, AuthService>();
 
             var app = builder.Build();
 
@@ -50,6 +75,7 @@ namespace MemoSphere.Api
 
             app.UseHttpsRedirection();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
 
@@ -61,6 +87,9 @@ namespace MemoSphere.Api
                 try
                 {
                     var context = services.GetRequiredService<MemoSphereDbContext>();
+
+                    Console.WriteLine("🔄 Adatbázis migrációk ellenőrzése és futtatása...");
+                    context.Database.Migrate();
 
                     var testUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
                     var testUserExists = context.Users.Any(u => u.Id == testUserId);

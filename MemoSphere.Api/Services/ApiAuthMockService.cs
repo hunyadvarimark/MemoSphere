@@ -33,9 +33,10 @@ namespace MemoSphere.Api.Services
             throw new NotImplementedException();
         }
 
-        public Task<bool> SignInAsync(string email, string password)
+        public Task<string?> SignInAsync(string email, string password)
         {
-            throw new NotImplementedException();
+            // Csak visszaadunk egy kamu token szöveget, hogy a fordító megnyugodjon
+            return Task.FromResult<string?>("this-is-a-mocked-jwt-token-for-compiler-peace");
         }
 
         public Task<string> GetGoogleOAuthUrl()

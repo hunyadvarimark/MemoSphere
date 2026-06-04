@@ -4,8 +4,7 @@ using Microsoft.Web.WebView2.Core;
 using System;
 using System.Diagnostics;
 using System.Windows;
-using System.Windows.Input;
-using Microsoft.Extensions.DependencyInjection;
+using System.Windows.Input; 
 
 namespace MemoSphere.WPF.Views
 {
@@ -21,7 +20,6 @@ namespace MemoSphere.WPF.Views
             _authService = authService;
             _mainWindow = mainWindow;
 
-            // Enter lenyomásra is bejelentkezzen
             PasswordBox.KeyDown += (s, e) =>
             {
                 if (e.Key == Key.Enter)
@@ -64,7 +62,6 @@ namespace MemoSphere.WPF.Views
                 var webView = new Microsoft.Web.WebView2.Wpf.WebView2();
                 _webViewWindow.Content = webView;
 
-                // WebView bezárása esetén (ha a felhasználó zárja be)
                 _webViewWindow.Closed += (s, args) =>
                 {
                     Debug.WriteLine("WebView ablak bezárva");
@@ -88,7 +85,6 @@ namespace MemoSphere.WPF.Views
                     await webView.EnsureCoreWebView2Async(env);
                     Debug.WriteLine("WebView inicializálva (új környezet, tiszta cache)");
 
-                    // Cookie-k törlése az adott domain-ről
                     var cookieManager = webView.CoreWebView2.CookieManager;
                     var cookies = await cookieManager.GetCookiesAsync("https://accounts.google.com");
                     foreach (var cookie in cookies)
@@ -205,7 +201,6 @@ namespace MemoSphere.WPF.Views
                     }
                 };
 
-                // 8. OAuth URL betöltése
                 Debug.WriteLine("OAuth URL betöltése a WebView-ba...");
                 webView.CoreWebView2.Navigate(oauthUrl);
             }
@@ -231,7 +226,6 @@ namespace MemoSphere.WPF.Views
                 var email = EmailTextBox.Text.Trim();
                 var password = PasswordBox.Password;
 
-                // Validáció
                 if (string.IsNullOrEmpty(email))
                 {
                     ShowError("Kérlek add meg az email címed!");
@@ -250,12 +244,12 @@ namespace MemoSphere.WPF.Views
                     return;
                 }
 
-                // Bejelentkezés
-                var success = await _authService.SignInAsync(email, password);
+                var token = await _authService.SignInAsync(email, password);
 
-                if (success)
+                if (!string.IsNullOrEmpty(token))
                 {
-                    // Sikeres bejelentkezés
+                    Debug.WriteLine("WPF: Sikeres bejelentkezés, token elmentve. Adatok betöltése...");
+
                     await _mainWindow.LoadDataAsync();
                     _mainWindow.Show();
                     this.Close();

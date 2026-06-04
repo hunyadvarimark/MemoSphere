@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:18
+    container_name: memosphere-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: titkosjelszo
+      POSTGRES_DB: MemoSphereDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+  api:
+    build:
+      context: .
+      dockerfile: MemoSphere.Api/Dockerfile
+    container_name: memosphere-api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development  
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=MemoSphereDb;Username=postgres;Password=titkosjelszo
+      
+      - JwtSettings__Issuer=MemoSphereApi
+      - JwtSettings__Audience=MemoSphereWpfClient
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY}
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
