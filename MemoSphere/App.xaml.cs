@@ -37,12 +37,23 @@ namespace MemoSphere.WPF
                     var configuration = context.Configuration;
 
                     services.AddSingleton(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5000/") });
-                    var connectionString = Environment.GetEnvironmentVariable("LOCAL_DOCKER_CONNECTION_STRING")
-            ?? configuration.GetConnectionString("DefaultConnection");
 
-                    services.AddDbContextFactory<MemoSphereDbContext>(options =>
-    options.UseNpgsql(connectionString));
+                    services.AddSingleton<IAuthService, ClientAuthService>();
+                    services.AddSingleton<INoteService, ClientNoteService>();
+                    services.AddSingleton<ISubjectService, ClientSubjectService>();
+                    services.AddSingleton<ITopicService, ClientTopicService>();
+                    services.AddSingleton<IQuestionService, ClientQuestionService>();
+                    services.AddSingleton<INoteShareService, ClientNoteShareService>();
+                    services.AddSingleton<IDocumentImportService, ClientDocumentImportService>();
 
+                    services.AddSingleton<ClientQuizService>();
+                    services.AddSingleton<IQuizService>(sp => sp.GetRequiredService<ClientQuizService>());
+                    services.AddSingleton<IActiveLearningService>(sp => sp.GetRequiredService<ClientQuizService>());
+
+                    // ====================================================================
+                    // VIEWMODEL-EK ÉS KOORDINÁTOROK (Hozzájuk sem kellett nyúlni!)
+                    // Automatikusan az új kliens szervizeket kapják meg interfészen keresztül.
+                    // ====================================================================
                     services.AddSingleton<MainWindow>();
                     services.AddTransient<LoginWindow>(sp =>
                     {
@@ -50,11 +61,6 @@ namespace MemoSphere.WPF
                         var mainWindow = sp.GetRequiredService<MainWindow>();
                         return new LoginWindow(authService, mainWindow);
                     });
-
-                    services.AddMemoSphereServices(configuration);
-
-
-                    services.AddSingleton<IAuthService, ClientAuthService>();
 
                     services.AddSingleton<SubjectListViewModel>();
                     services.AddSingleton<TopicListViewModel>();
@@ -105,7 +111,6 @@ namespace MemoSphere.WPF
 
             try
             {
-
                 var authService = _host.Services.GetRequiredService<IAuthService>();
                 var isAuthenticated = await authService.IsAuthenticatedAsync();
                 Debug.WriteLine($"👤 IsAuthenticated: {isAuthenticated}");

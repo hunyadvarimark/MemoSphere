@@ -22,8 +22,8 @@ services:
       - "5000:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development  
-      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=MemoSphereDb;Username=postgres;Password=titkosjelszo
-      
+      - LOCAL_DOCKER_CONNECTION_STRING=Host=db;Port=5432;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - JwtSettings__Issuer=MemoSphereApi
       - JwtSettings__Audience=MemoSphereWpfClient
       - JwtSettings__SecretKey=${JWT_SECRET_KEY}

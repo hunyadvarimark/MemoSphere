@@ -12,7 +12,8 @@ namespace MemoSphere.WPF.Services
     public class ClientAuthService : IAuthService
     {
         private readonly HttpClient _httpClient;
-        private static string? _currentToken;
+
+        public static string? CurrentToken { get; private set; }
 
         public ClientAuthService(HttpClient httpClient)
         {
@@ -26,15 +27,15 @@ namespace MemoSphere.WPF.Services
             if (!response.IsSuccessStatusCode) return null;
 
             var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
-            _currentToken = result?.Token;
+            CurrentToken = result?.Token;
 
-            if (!string.IsNullOrEmpty(_currentToken))
+            if (!string.IsNullOrEmpty(CurrentToken))
             {
                 _httpClient.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _currentToken);
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", CurrentToken);
             }
 
-            return _currentToken;
+            return CurrentToken;
         }
 
         public async Task<bool> SignUpAsync(string email, string password)
@@ -45,10 +46,10 @@ namespace MemoSphere.WPF.Services
 
         public Guid GetCurrentUserId()
         {
-            if (string.IsNullOrEmpty(_currentToken)) return Guid.Empty;
+            if (string.IsNullOrEmpty(CurrentToken)) return Guid.Empty;
 
             var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(_currentToken);
+            var jwtToken = handler.ReadJwtToken(CurrentToken);
             var userIdStr = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub")?.Value;
 
             return string.IsNullOrEmpty(userIdStr) ? Guid.Empty : Guid.Parse(userIdStr);
@@ -56,18 +57,18 @@ namespace MemoSphere.WPF.Services
 
         public string? GetCurrentUserEmail()
         {
-            if (string.IsNullOrEmpty(_currentToken)) return null;
+            if (string.IsNullOrEmpty(CurrentToken)) return null;
 
             var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(_currentToken);
+            var jwtToken = handler.ReadJwtToken(CurrentToken);
             return jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
         }
 
-        public Task<bool> IsAuthenticatedAsync() => Task.FromResult(!string.IsNullOrEmpty(_currentToken));
+        public Task<bool> IsAuthenticatedAsync() => Task.FromResult(!string.IsNullOrEmpty(CurrentToken));
 
         public Task SignOutAsync()
         {
-            _currentToken = null;
+            CurrentToken = null;
             _httpClient.DefaultRequestHeaders.Authorization = null;
             return Task.CompletedTask;
         }
