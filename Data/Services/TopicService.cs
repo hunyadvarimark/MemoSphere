@@ -36,7 +36,7 @@ namespace Data.Services
             }
             if (await TopicExistsAsync(topic.Title, topic.SubjectId))
             {
-                throw new InvalidOperationException($"Már létezik '{topic.Title}' nevű tantárgy!");
+                throw new InvalidOperationException($"Már létezik '{topic.Title}' nevű téma!");
             }
             if (topic.Title.Length > 100)
             {
