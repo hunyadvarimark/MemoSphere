@@ -71,12 +71,19 @@ namespace WPF.ViewModels.Quiz
 
             foreach (var t in topics.OrderBy(x => x.Title))
             {
+
+                int questionCount = await _quizService.GetQuestionCountForTopicsAsync(new List<int> { t.Id });
+
+                if (questionCount == 0)
+                {
+                    continue;
+                }
+
                 var topicVM = new TopicViewModel(t);
                 topicVM.IsActive = activeTopicIds.Contains(t.Id);
 
                 var selectableVM = new SelectableTopicViewModel(topicVM);
-
-                selectableVM.QuestionCount = await _quizService.GetQuestionCountForTopicsAsync(new List<int> { t.Id });
+                selectableVM.QuestionCount = questionCount;
                 selectableVM.MasteryPercentage = await _activeLearningService.GetMasteryPercentageAsync(t.Id);
 
                 if (selectableVM.IsActive)

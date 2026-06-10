@@ -74,17 +74,7 @@ namespace MemoSphere.WPF
                     services.AddSingleton<DashboardViewModel>();
                     services.AddSingleton<QuizTopicSelectionViewModel>();
 
-                    services.AddSingleton<HierarchyCoordinator>(provider =>
-                    {
-                        var subjectsVM = provider.GetRequiredService<SubjectListViewModel>();
-                        var topicsVM = provider.GetRequiredService<TopicListViewModel>();
-                        var notesVM = provider.GetRequiredService<NoteListViewModel>();
-                        var questionsVM = provider.GetRequiredService<QuestionListViewModel>();
-                        var noteDetailVM = provider.GetRequiredService<NoteDetailViewModel>();
-                        var quizVM = provider.GetRequiredService<QuizViewModel>();
 
-                        return new HierarchyCoordinator(subjectsVM, topicsVM, notesVM, questionsVM, noteDetailVM, quizVM);
-                    });
 
                     services.AddSingleton<CrudOperationHandler>(provider =>
                     {
@@ -96,7 +86,7 @@ namespace MemoSphere.WPF
                         var notesVM = provider.GetRequiredService<NoteListViewModel>();
                         var questionService = provider.GetRequiredService<IQuestionService>();
 
-                        return new CrudOperationHandler(subjectService, topicService, noteService, questionService, subjectsVM, topicsVM, notesVM);
+                        return new CrudOperationHandler(subjectService, topicService, noteService, questionService);
                     });
 
                     services.AddSingleton<MainViewModel>();

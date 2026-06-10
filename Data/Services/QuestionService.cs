@@ -15,7 +15,7 @@ namespace Data.Services
         private readonly IDbContextFactory<MemoSphereDbContext> _factory;
         private readonly IActiveLearningService _activeLearningService;
         private readonly string _modelName = "gemini-2.5-flash";
-        private const int MaxChunkSizeForBatch = 3000; // karakterben
+        private const int MaxChunkSizeForBatch = 3000;
         private const int MaxParallelTasks = 3;
 
         public QuestionService(IUnitOfWork unitofWork,
@@ -65,6 +65,10 @@ namespace Data.Services
             if (note == null || note.UserId != userId)
             {
                 throw new ArgumentException("A jegyzet nem található vagy nincs jogosultság.", nameof(noteId));
+            }
+            if (string.IsNullOrWhiteSpace(note.Content) || note.Content.Trim().Length < 100)
+            {
+                throw new InvalidOperationException("A jegyzet túl rövid ahhoz, hogy kérdéseket lehessen generálni belőle! Kérlek, írj hozzá hosszabb tartalmat (min. 60 karakter).");
             }
 
             var chunks = (await _unitOfWork.NoteChunks.GetFilteredAsync(filter: n => n.NoteId == noteId)).ToList();

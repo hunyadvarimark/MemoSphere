@@ -23,6 +23,10 @@ public class TopicListViewModelTests
         _noteShareServiceMock = new Mock<INoteShareService>();
         _viewModel = new TopicListViewModel(_topicServiceMock.Object, _activeLearningServiceMock.Object, _noteShareServiceMock.Object);
 
+        _activeLearningServiceMock
+        .Setup(a => a.GetActiveTopicsAsync())
+        .ReturnsAsync(new List<ActiveTopic>());
+
         var subjectServiceMock = new Mock<ISubjectService>();
         var subjectViewModelMock = new Mock<SubjectViewModel>(
             subjectServiceMock.Object,
@@ -33,9 +37,6 @@ public class TopicListViewModelTests
             null,
             _topicServiceMock.Object,
             null,
-            null,
-            null,
-            _viewModel,
             null
         );
     }
@@ -106,65 +107,45 @@ public class TopicListViewModelTests
         Assert.That(_viewModel.SelectedTopic, Is.Null);
     }
 
-    //[Test]
-    //public async Task AddTopic_NevDuplikacioEseten_HibatDobEsNemMentAlapra()
-    //{
-    //    // ==========================================
-    //    // 1. ARRANGE
-    //    // ==========================================
-    //    int tesztSubjectId = 55;
+    [Test]
+    public async Task AddTopic_NevDuplikacioEseten_HibatDobEsNemMentAlapra()
+    {
 
-    //    // GOLYÓÁLLÓ: Bármilyen névvel, bármilyen subjectId-val és bármilyen excludeId-val hívják meg, 
-    //    // a Moq azt fogja mondani, hogy IGEN, LÉTEZIK A DUPLIKÁCIÓ (true)!
-    //    _topicServiceMock
-    //        .Setup(s => s.TopicExistsAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int?>()))
-    //        .ReturnsAsync(true);
+        _topicServiceMock
+            .Setup(s => s.AddTopicAsync(It.IsAny<Topic>()))
+            .ThrowsAsync(new InvalidOperationException("Már létezik ilyen nevű téma!"));
 
-    //    // BIZTONSÁGI ÖV: Ha a kód mégis továbbmenne a mentés utáni UI frissítésre (LoadTopicsAsync),
-    //    // felkészítjük az ActiveLearningService-t is, hogy ne dobjon NullReference / ArgumentNull hibát!
-    //    _activeLearningServiceMock
-    //        .Setup(a => a.GetActiveTopicsAsync())
-    //        .ReturnsAsync(new List<ActiveTopic>());
+        var masodikMatek = new Topic { Id = 0, Title = "Matek" };
 
-    //    // Gyártunk egy igazi Subject-et és egy igazi SubjectViewModel-et az ID-val
-    //    var kamuSubjectEntitas = new Subject { Id = tesztSubjectId, Title = "Kamu Tantárgy" };
-    //    var igaziSubjectVm = new SubjectViewModel(kamuSubjectEntitas);
 
-    //    // Létrehozunk egy igazi SubjectListViewModel-t
-    //    var subjectServiceMock = new Mock<ISubjectService>();
-    //    var igaziSubjectListVm = new SubjectListViewModel(
-    //        subjectServiceMock.Object,
-    //        _noteShareServiceMock.Object
-    //    );
+        Assert.CatchAsync<InvalidOperationException>(async () =>
+            await _crudHandler.SaveTopicAsync(masodikMatek)
+        );
+    }
 
-    //    // Beállítjuk rajta a kijelölést kézzel
-    //    igaziSubjectListVm.SelectedSubject = igaziSubjectVm;
+    [Test]
+    public async Task AddTopic_SikeresMentesEseten_VisszaadjaAzElmentettEntitast()
+    {
+        var ujTopic = new Topic { Id = 0, Title = "Fizika", SubjectId = 1 };
+        var elmentettTopic = new Topic { Id = 101, Title = "Fizika", SubjectId = 1 };
 
-    //    // Összerakunk egy egyedi handlert, ami megkapja ezt a valódi ViewModel-t
-    //    var izolaltHandler = new CrudOperationHandler(
-    //        null,
-    //        _topicServiceMock.Object,
-    //        null,
-    //        null,
-    //        igaziSubjectListVm,
-    //        _viewModel,
-    //        null
-    //    );
+        _topicServiceMock
+            .Setup(s => s.AddTopicAsync(It.IsAny<Topic>()))
+            .ReturnsAsync(elmentettTopic);
 
-    //    // A menteni kívánt új téma objektum
-    //    var masodikMatek = new Topic
-    //    {
-    //        Id = 0,
-    //        Title = "Matek",
-    //        SubjectId = tesztSubjectId,
-    //        Subject = kamuSubjectEntitas
-    //    };
+        var result = await _crudHandler.SaveTopicAsync(ujTopic);
 
-    //    // ==========================================
-    //    // 2. ACT & ASSERT
-    //    // ==========================================
-    //    Assert.CatchAsync<InvalidOperationException>(async () =>
-    //        await izolaltHandler.SaveTopicAsync(masodikMatek)
-    //    );
-    //}
+        _topicServiceMock
+            .Setup(t => t.GetTopicBySubjectIdAsync(1))
+            .ReturnsAsync(new List<Topic> { elmentettTopic });
+
+        await _viewModel.LoadTopicsAsync(1);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.Id, Is.EqualTo(101));
+
+        Assert.That(_viewModel.Topics.Count, Is.EqualTo(1));
+        Assert.That(_viewModel.Topics[0].Id, Is.EqualTo(101));
+        Assert.That(_viewModel.Topics[0].Title, Is.EqualTo("Fizika"));
+    }
 }

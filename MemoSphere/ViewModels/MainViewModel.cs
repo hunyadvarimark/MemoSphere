@@ -1,6 +1,10 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using WPF.Utilities;
@@ -20,28 +24,33 @@ namespace WPF.ViewModels
         Browser,
         QuizCenter
     }
+
     public class MainViewModel : BaseViewModel
     {
-        private readonly HierarchyCoordinator _hierarchyCoordinator;
         private readonly CrudOperationHandler _crudHandler;
         private readonly INoteService _noteService;
         private readonly IQuestionService _questionService;
         private readonly IAuthService _authService;
         private readonly INoteShareService _noteShareService;
         private readonly IDocumentImportService _documentImportService;
+
         public QuizViewModel QuizVM { get; }
         public QuizTopicSelectionViewModel QuizSelectionVM { get; }
         public QuestionDetailViewModel QuestionDetailVM { get; }
         public DashboardViewModel DashboardVM { get; }
+
         // List ViewModels
         public SubjectListViewModel SubjectsVM { get; }
         public TopicListViewModel TopicsVM { get; }
         public NoteListViewModel NotesVM { get; }
+
         // Detail ViewModels
         public SubjectDetailViewModel SubjectDetailVM { get; }
         public TopicDetailViewModel TopicDetailVM { get; }
+
         // TAB KEZELÉS
         public ObservableCollection<NoteTabViewModel> OpenNotes { get; } = new();
+
         private NoteTabViewModel _activeNote;
         public NoteTabViewModel ActiveNote
         {
@@ -77,18 +86,21 @@ namespace WPF.ViewModels
                 }
             }
         }
+
         private bool _isNoteListVisible;
         public bool IsNoteListVisible
         {
             get => _isNoteListVisible;
             set => SetProperty(ref _isNoteListVisible, value);
         }
+
         private string _currentUserEmail;
         public string CurrentUserEmail
         {
             get => _currentUserEmail;
             set => SetProperty(ref _currentUserEmail, value);
         }
+
         // UI State
         private bool _isEditingQuestion;
         public bool IsEditingQuestion
@@ -110,18 +122,21 @@ namespace WPF.ViewModels
             get => _isAddingSubject;
             set => SetProperty(ref _isAddingSubject, value);
         }
+
         private bool _isAddingTopic;
         public bool IsAddingTopic
         {
             get => _isAddingTopic;
             set => SetProperty(ref _isAddingTopic, value);
         }
+
         private bool _isQuizActive;
         public bool IsQuizActive
         {
             get => _isQuizActive;
             set => SetProperty(ref _isQuizActive, value);
         }
+
         private bool _hasEnoughQuestions;
         public bool HasEnoughQuestions
         {
@@ -142,6 +157,7 @@ namespace WPF.ViewModels
             get => _isQuizSelectionVisible;
             set => SetProperty(ref _isQuizSelectionVisible, value);
         }
+
         // Commands
         public ICommand UnselectNoteCommand { get; }
         public RelayCommand AddSubjectCommand { get; }
@@ -155,6 +171,7 @@ namespace WPF.ViewModels
         public RelayCommand ShowDashboardViewCommand { get; }
         public RelayCommand ShowBrowserViewCommand { get; }
         public RelayCommand ShowQuizCenterCommand { get; }
+
         public MainViewModel(
             SubjectListViewModel subjectsVM,
             TopicListViewModel topicsVM,
@@ -165,7 +182,6 @@ namespace WPF.ViewModels
             DashboardViewModel dashboardVM,
             QuizTopicSelectionViewModel quizSelectionVM,
             QuestionDetailViewModel questionDetailVM,
-            HierarchyCoordinator hierarchyCoordinator,
             CrudOperationHandler crudHandler,
             INoteService noteService,
             IQuestionService questionService,
@@ -185,8 +201,6 @@ namespace WPF.ViewModels
             QuizSelectionVM = quizSelectionVM ?? throw new ArgumentNullException(nameof(quizSelectionVM));
             QuizSelectionVM.Initialize(this);
 
-
-            _hierarchyCoordinator = hierarchyCoordinator ?? throw new ArgumentNullException(nameof(hierarchyCoordinator));
             _crudHandler = crudHandler ?? throw new ArgumentNullException(nameof(crudHandler));
             _noteService = noteService ?? throw new ArgumentNullException(nameof(noteService));
             _questionService = questionService ?? throw new ArgumentNullException(nameof(questionService));
@@ -194,6 +208,7 @@ namespace WPF.ViewModels
             _noteShareService = noteShareService;
             _documentImportService = documentImportService ?? throw new ArgumentNullException(nameof(documentImportService));
             _hasEnoughQuestions = false;
+
             // Commands
             UnselectNoteCommand = new RelayCommand(_ => NotesVM.SelectedNote = null);
             AddSubjectCommand = new RelayCommand(_ =>
@@ -237,11 +252,11 @@ namespace WPF.ViewModels
             );
 
             _currentMainView = MainViewType.Dashboard;
-
             CurrentUserEmail = _authService.GetCurrentUserEmail() ?? "Ismeretlen";
-            _hierarchyCoordinator.Initialize();
+
             SetupEventSubscriptions();
         }
+
         private void CreateNewNote()
         {
             if (TopicsVM.SelectedTopic == null) return;
@@ -253,6 +268,7 @@ namespace WPF.ViewModels
             };
             OpenNoteInTab(newNote);
         }
+
         private void OpenNoteInTab(Note note)
         {
             var existingTab = OpenNotes.FirstOrDefault(t => t.Note.Id == note.Id && note.Id > 0);
@@ -275,6 +291,7 @@ namespace WPF.ViewModels
                 _ = questionListVM.LoadQuestionsAsync(note.Id);
             }
         }
+
         private void OnNoteTabCloseRequested(NoteTabViewModel tab)
         {
             OpenNotes.Remove(tab);
@@ -283,6 +300,7 @@ namespace WPF.ViewModels
                 ActiveNote = OpenNotes.LastOrDefault();
             }
         }
+
         private async void OnNoteTabSaved(Note note)
         {
             try
@@ -316,6 +334,7 @@ namespace WPF.ViewModels
                 MessageBox.Show($"Hiba a mentés során: {ex.Message}", "Hiba");
             }
         }
+
         private async Task OpenQuizSelectionModalAsync()
         {
             if (SubjectsVM.SelectedSubject == null)
@@ -326,10 +345,7 @@ namespace WPF.ViewModels
 
             try
             {
-                // Töltsük be a modalba az aktuális tárgy témaköreit
                 await QuizSelectionVM.LoadTopicsAsync(SubjectsVM.SelectedSubject.Id);
-
-                // Nyissuk meg a modalt
                 IsQuizSelectionVisible = true;
             }
             catch (Exception ex)
@@ -337,12 +353,12 @@ namespace WPF.ViewModels
                 MessageBox.Show($"Hiba a kvíz-választó betöltésekor: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
         public async Task StartNoteQuizAsync(int noteId)
         {
             try
             {
                 System.Diagnostics.Debug.WriteLine($"🚀 StartNoteQuizAsync called for NoteID: {noteId}");
-
                 QuizVM.ResetState();
                 System.Diagnostics.Debug.WriteLine("🔄 QuizVM state reset before loading");
 
@@ -374,21 +390,24 @@ namespace WPF.ViewModels
                     MessageBoxImage.Error);
             }
         }
+
         private void SetupEventSubscriptions()
         {
-            // Hozzáadva: Subscription a topic activation változásra, hogy frissítse a dashboard-ot
+            // 1. Dashboard frissítés, ha változik egy témakör státusza
             TopicsVM.TopicActivationChanged += async () =>
             {
                 System.Diagnostics.Debug.WriteLine("🔄 Topic activation changed - Refreshing dashboard");
                 await DashboardVM.LoadDashboardDataAsync();
             };
 
-            // Save events
+            // 2. Tantárgy (Subject) MENTÉSE / MÓDOSÍTÁSA
             SubjectDetailVM.SubjectSavedRequested += async subject =>
             {
                 try
                 {
                     await _crudHandler.SaveSubjectAsync(subject);
+                    await SubjectsVM.LoadSubjectsAsync(); // FRISSÍTÉS: újraolvassuk a listát a felületen
+
                     IsAddingSubject = false;
                     IsDialogOpen = false;
                     SubjectDetailVM.ResetState();
@@ -399,11 +418,17 @@ namespace WPF.ViewModels
                 }
             };
 
+            // 3. Témakör (Topic) MENTÉSE / MÓDOSÍTÁSA
             TopicDetailVM.TopicSavedRequested += async topic =>
             {
                 try
                 {
                     await _crudHandler.SaveTopicAsync(topic);
+                    if (SubjectsVM.SelectedSubject != null)
+                    {
+                        await TopicsVM.LoadTopicsAsync(SubjectsVM.SelectedSubject.Id); // FRISSÍTÉS
+                    }
+
                     IsAddingTopic = false;
                     IsDialogOpen = false;
                     TopicDetailVM.ResetState(SubjectsVM.SelectedSubject?.Id ?? 0);
@@ -413,27 +438,43 @@ namespace WPF.ViewModels
                     System.Diagnostics.Debug.WriteLine($"❌ Topic save error: {ex.Message}");
                 }
             };
-            // Delete events
+
+            // 4. Tantárgy (Subject) TÖRLÉSE
             SubjectsVM.DeleteSubjectRequested += async id =>
             {
                 try
                 {
-                    await _crudHandler.DeleteSubjectAsync(id);
+                    bool isDeleted = await _crudHandler.DeleteSubjectAsync(id);
+                    if (isDeleted)
+                    {
+                        await SubjectsVM.LoadSubjectsAsync(); // FRISSÍTÉS: újraolvassuk a tárgyakat, ha sikeres a törlés
+                    }
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"❌ Subject delete error: {ex.Message}");
                 }
             };
+
+            // 5. Témakör (Topic) TÖRLÉSE
             TopicsVM.DeleteTopicRequested += async id =>
             {
                 try
                 {
-                    await _crudHandler.DeleteTopicAsync(id);
-                    var tabsToRemove = OpenNotes.Where(t => t.Note.TopicId == id).ToList();
-                    foreach (var tab in tabsToRemove)
+                    bool isDeleted = await _crudHandler.DeleteTopicAsync(id);
+                    if (isDeleted)
                     {
-                        OnNoteTabCloseRequested(tab);
+                        if (SubjectsVM.SelectedSubject != null)
+                        {
+                            await TopicsVM.LoadTopicsAsync(SubjectsVM.SelectedSubject.Id); // FRISSÍTÉS
+                        }
+
+                        // A törölt témakörhöz tartozó nyitott tabok bezárása
+                        var tabsToRemove = OpenNotes.Where(t => t.Note.TopicId == id).ToList();
+                        foreach (var tab in tabsToRemove)
+                        {
+                            OnNoteTabCloseRequested(tab);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -441,24 +482,36 @@ namespace WPF.ViewModels
                     System.Diagnostics.Debug.WriteLine($"❌ Topic delete error: {ex.Message}");
                 }
             };
+
+            // 6. Jegyzet (Note) TÖRLÉSE
             NotesVM.DeleteNoteRequested += async id =>
             {
                 try
                 {
-                    await _crudHandler.DeleteNoteAsync(id);
-                    var openTab = OpenNotes.FirstOrDefault(t => t.Note.Id == id);
-                    if (openTab != null)
+                    bool isDeleted = await _crudHandler.DeleteNoteAsync(id);
+                    if (isDeleted)
                     {
-                        OnNoteTabCloseRequested(openTab);
+                        NotesVM.RemoveNoteFromList(id);
+
+                        if (NotesVM.SelectedNote?.Note.Id == id)
+                        {
+                            NotesVM.SelectedNote = null;
+                        }
+                        var openTab = OpenNotes.FirstOrDefault(t => t.Note.Id == id);
+                        if (openTab != null)
+                        {
+                            OnNoteTabCloseRequested(openTab);
+                        }
+                        await ValidateQuestionCountAsync();
                     }
-                    await ValidateQuestionCountAsync();
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"❌ Note delete error: {ex.Message}");
                 }
             };
-            // Cancel events
+
+            // 7. Lemondás (Cancel) Események
             SubjectDetailVM.CancelRequested += () =>
             {
                 IsAddingSubject = false;
@@ -469,7 +522,8 @@ namespace WPF.ViewModels
                 IsAddingTopic = false;
                 IsDialogOpen = false;
             };
-            // Edit events
+
+            // 8. Szerkesztés (Edit) Események indítása
             SubjectsVM.EditSubjectRequested += subject =>
             {
                 IsDialogOpen = true;
@@ -482,7 +536,8 @@ namespace WPF.ViewModels
                 TopicDetailVM.LoadTopic(topic);
                 IsAddingTopic = true;
             };
-            // UI State synchronization
+
+            // 9. UI Állapotszinkronizáció kijelöléseknél
             SubjectsVM.SubjectSelected += _ =>
             {
                 IsAddingTopic = false;
@@ -509,7 +564,6 @@ namespace WPF.ViewModels
                     }
                 }
             };
-            // Note lista note kiválasztás -> Tab megnyitása
             NotesVM.PropertyChanged += (s, e) =>
             {
                 if (e.PropertyName == nameof(NotesVM.SelectedNote) && NotesVM.SelectedNote != null)
@@ -530,7 +584,8 @@ namespace WPF.ViewModels
                     await DashboardVM.LoadDashboardDataAsync();
                 }
             };
-            // Question save event
+
+            // 10. Kérdés (Question) MENTÉSE
             QuestionDetailVM.QuestionSavedRequested += async question =>
             {
                 try
@@ -543,6 +598,7 @@ namespace WPF.ViewModels
             };
             QuestionDetailVM.CancelRequested += () => IsEditingQuestion = false;
         }
+
         private async Task ValidateQuestionCountAsync()
         {
             System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
@@ -562,10 +618,11 @@ namespace WPF.ViewModels
                 await QuizVM.ValidateTopicsForQuizAsync(topicIds);
                 System.Diagnostics.Debug.WriteLine($"✅ ValidateTopicsForQuizAsync completed");
                 System.Diagnostics.Debug.WriteLine($"🎯 QuizVM.CanStartQuiz = {QuizVM.CanStartQuiz}");
+
                 var oldValue = HasEnoughQuestions;
                 HasEnoughQuestions = QuizVM.CanStartQuiz;
                 System.Diagnostics.Debug.WriteLine($"📊 HasEnoughQuestions: {oldValue} → {HasEnoughQuestions}");
-                // ✅ FORCE UI UPDATE
+
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     OnPropertyChanged(nameof(HasEnoughQuestions));
@@ -577,11 +634,11 @@ namespace WPF.ViewModels
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ ERROR: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"StackTrace: {ex.StackTrace}");
                 HasEnoughQuestions = false;
                 System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
             }
         }
+
         public async Task InitializeAsync()
         {
             System.Diagnostics.Debug.WriteLine("🏁 InitializeAsync started");
@@ -601,26 +658,23 @@ namespace WPF.ViewModels
             }
             System.Diagnostics.Debug.WriteLine("✅ InitializeAsync complete");
         }
+
         private async Task LogoutAsync()
         {
             try
             {
                 System.Diagnostics.Debug.WriteLine("=== Logout kezdődik ===");
-                // Megerősítés
                 var result = MessageBox.Show(
                     "Biztosan ki szeretnél jelentkezni?",
                     "Kijelentkezés",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question
                 );
-                if (result != MessageBoxResult.Yes)
-                {
-                    return;
-                }
-                // Kijelentkezés
+                if (result != MessageBoxResult.Yes) return;
+
                 await _authService.SignOutAsync();
                 System.Diagnostics.Debug.WriteLine("Session törölve");
-                // Restart application
+
                 System.Diagnostics.Process.Start(
                     System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
                 );
@@ -632,6 +686,7 @@ namespace WPF.ViewModels
                 MessageBox.Show($"Hiba a kijelentkezés során: {ex.Message}", "Hiba");
             }
         }
+
         private async Task OpenQuizCenterAsync()
         {
             if (SubjectsVM.SelectedSubject == null)
@@ -644,7 +699,6 @@ namespace WPF.ViewModels
             try
             {
                 await QuizSelectionVM.LoadTopicsAsync(SubjectsVM.SelectedSubject.Id);
-
                 CurrentMainView = MainViewType.QuizCenter;
             }
             catch (Exception ex)
@@ -652,6 +706,7 @@ namespace WPF.ViewModels
                 MessageBox.Show($"Hiba a kvíz-választó betöltésekor: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
         public void OpenQuestionEditor(Question? question, int topicId = 0, int noteId = 0)
         {
             if (question == null)
@@ -668,6 +723,7 @@ namespace WPF.ViewModels
             }
             IsEditingQuestion = true;
         }
+
         public void AddNewNoteAndShowBrowser()
         {
             CurrentMainView = MainViewType.Browser;
@@ -678,7 +734,7 @@ namespace WPF.ViewModels
             }
             else
             {
-                MessageBox.Show("Válassz ki egy témakört a bal oldali sávban, ahová az új jegyzetet létrehozod.", "Nincs témakör kiválasztva", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Válassz ki egy témakör t a bal oldali sávban, ahová az új jegyzetet létrehozod.", "Nincs témakör kiválasztva", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
     }

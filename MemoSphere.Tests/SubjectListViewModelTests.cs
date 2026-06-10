@@ -24,9 +24,6 @@ namespace MemoSphere.WPF.Tests
                 _subjectServiceMock.Object,
                 null,
                 null,
-                null,
-                _viewModel,
-                null,
                 null
             );
         }
