@@ -1,6 +1,5 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
-using System.Windows;
 
 public class CrudOperationHandler
 {
@@ -8,18 +7,19 @@ public class CrudOperationHandler
     private readonly ITopicService _topicService;
     private readonly INoteService _noteService;
     private readonly IQuestionService _questionService;
-
-
+    private readonly IDialogService _dialogService;
     public CrudOperationHandler(
         ISubjectService subjectService,
         ITopicService topicService,
         INoteService noteService,
-        IQuestionService questionService)
+        IQuestionService questionService,
+        IDialogService dialogService)
     {
         _subjectService = subjectService;
         _topicService = topicService;
         _noteService = noteService;
         _questionService = questionService;
+        _dialogService = dialogService;
     }
 
     public async Task<Subject> SaveSubjectAsync(Subject subject)
@@ -40,17 +40,17 @@ public class CrudOperationHandler
         }
         catch (InvalidOperationException ex)
         {
-            MessageBox.Show(ex.Message, "Figyelmeztetés", MessageBoxButton.OK, MessageBoxImage.Warning);
+            _dialogService.ShowMessage(ex.Message, "Figyelmeztetés", MessageType.Warning);
             throw;
         }
         catch (ArgumentException ex)
         {
-            MessageBox.Show(ex.Message, "Érvénytelen adat", MessageBoxButton.OK, MessageBoxImage.Warning);
+            _dialogService.ShowMessage(ex.Message, "Érvénytelen adat", MessageType.Warning);
             throw;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Hiba a mentés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            _dialogService.ShowMessage($"Hiba a mentés során: {ex.Message}", "Hiba", MessageType.Error);
             throw;
         }
     }
@@ -73,22 +73,22 @@ public class CrudOperationHandler
         }
         catch (InvalidOperationException ex)
         {
-            MessageBox.Show(ex.Message, "Figyelmeztetés", MessageBoxButton.OK, MessageBoxImage.Warning);
+            _dialogService.ShowMessage(ex.Message, "Figyelmeztetés", MessageType.Warning);
             throw;
         }
         catch (ArgumentException ex)
         {
-            MessageBox.Show(ex.Message, "Érvénytelen adat", MessageBoxButton.OK, MessageBoxImage.Warning);
+            _dialogService.ShowMessage(ex.Message, "Érvénytelen adat", MessageType.Warning);
             throw;
         }
         catch (UnauthorizedAccessException ex)
         {
-            MessageBox.Show(ex.Message, "Hozzáférés megtagadva", MessageBoxButton.OK, MessageBoxImage.Error);
+            _dialogService.ShowMessage(ex.Message, "Hozzáférés megtagadva", MessageType.Error);
             throw;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Hiba a mentés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            _dialogService.ShowMessage($"Hiba a mentés során: {ex.Message}", "Hiba", MessageType.Error);
             throw;
         }
     }
@@ -97,13 +97,11 @@ public class CrudOperationHandler
     {
         try
         {
-            var result = MessageBox.Show(
-                "Biztosan törölni szeretnéd ezt a témakört?\n\nA hozzá tartozó Jegyzetek és Kérdések is törlődnek!",
-                "Törlés megerősítése",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+            var result = _dialogService.AskConfirmation(
+                "Biztosan törölni szeretnéd ezt a témakör?\\n\\nA hozzá tartozó Jegyzetek és Kérdések is törlődnek!",
+                "Törlés megerősítése");
 
-            if (result != MessageBoxResult.Yes)
+            if (result != DialogResult.Yes)
                 return false;
 
             await _topicService.DeleteTopicAsync(topicId);
@@ -111,17 +109,17 @@ public class CrudOperationHandler
         }
         catch (UnauthorizedAccessException ex)
         {
-            MessageBox.Show(ex.Message, "Hozzáférés megtagadva", MessageBoxButton.OK, MessageBoxImage.Error);
+            _dialogService.ShowMessage(ex.Message, "Hozzáférés megtagadva", MessageType.Error);
             throw;
         }
         catch (ArgumentException ex)
         {
-            MessageBox.Show(ex.Message, "Érvénytelen művelet", MessageBoxButton.OK, MessageBoxImage.Warning);
+            _dialogService.ShowMessage(ex.Message, "Érvénytelen művelet", MessageType.Warning);
             throw;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Hiba a törlés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            _dialogService.ShowMessage($"Hiba a törlés során: {ex.Message}", "Hiba", MessageType.Error);
             throw;
         }
     }
@@ -130,13 +128,11 @@ public class CrudOperationHandler
     {
         try
         {
-            var result = MessageBox.Show(
-                "Biztosan törölni szeretnéd ezt a tantárgyat?\n\nA hozzá tartozó Témakörök is törlődnek!",
-                "Törlés megerősítése",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+            var result = _dialogService.AskConfirmation(
+                "Biztosan törölni szeretnéd ezt a tantárgyat?\\n\\nA hozzá tartozó Témakörök is törlődnek!",
+                "Törlés megerősítése");
 
-            if (result != MessageBoxResult.Yes)
+            if (result != DialogResult.Yes)
                 return false;
 
             await _subjectService.DeleteSubjectAsync(subjectId);
@@ -144,7 +140,7 @@ public class CrudOperationHandler
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Hiba a törlés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            _dialogService.ShowMessage($"Hiba a törlés során: {ex.Message}", "Hiba", MessageType.Error);
             throw;
         }
     }
@@ -158,7 +154,7 @@ public class CrudOperationHandler
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Hiba a jegyzet törlése során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            _dialogService.ShowMessage($"Hiba a jegyzet törlése során: {ex.Message}", "Hiba", MessageType.Error);
             throw;
         }
     }
@@ -172,7 +168,7 @@ public class CrudOperationHandler
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Hiba a mentés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            _dialogService.ShowMessage($"Hiba a mentés során: {ex.Message}", "Hiba", MessageType.Error);
             throw;
         }
     }
@@ -181,10 +177,9 @@ public class CrudOperationHandler
     {
         try
         {
-            var result = MessageBox.Show("Biztosan törölni szeretnéd ezt a kérdést?", "Kérdés törlése",
-                                        MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            var result = _dialogService.AskConfirmation("Biztosan törölni szeretnéd ezt a kérdést?", "Kérdés törlése");
 
-            if (result == MessageBoxResult.Yes)
+            if (result == DialogResult.Yes)
             {
                 await _questionService.DeleteQuestionAsync(questionId);
                 return true;
@@ -193,7 +188,7 @@ public class CrudOperationHandler
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Hiba a törlés során: {ex.Message}", "Hiba", MessageBoxButton.OK, MessageBoxImage.Error);
+            _dialogService.ShowMessage($"Hiba a törlés során: {ex.Message}", "Hiba", MessageType.Error);
             return false;
         }
     }

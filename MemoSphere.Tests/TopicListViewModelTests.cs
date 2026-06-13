@@ -33,11 +33,17 @@ public class TopicListViewModelTests
             _noteShareServiceMock.Object
         );
 
+        var mockDialogService = new Mock<IDialogService>();
+        mockDialogService.Setup(d => d.AskConfirmation(It.IsAny<string>(), It.IsAny<string>()))
+                         .Returns(DialogResult.Yes);
+
+
         _crudHandler = new CrudOperationHandler(
             null,
             _topicServiceMock.Object,
             null,
-            null
+            null,
+            mockDialogService.Object
         );
     }
 

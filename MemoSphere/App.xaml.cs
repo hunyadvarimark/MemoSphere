@@ -1,8 +1,8 @@
 ﻿using Core.Interfaces.Services;
 using Data.Context;
 using Data.Services;
-using MemoSphere.WPF.Views;
 using MemoSphere.WPF.Services;
+using MemoSphere.WPF.Views;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,6 +11,7 @@ using System;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Windows;
+using WPF.Services;
 using WPF.ViewModels;
 using WPF.ViewModels.Dashboard;
 using WPF.ViewModels.Notes;
@@ -45,6 +46,9 @@ namespace MemoSphere.WPF
                     services.AddSingleton<IQuestionService, ClientQuestionService>();
                     services.AddSingleton<INoteShareService, ClientNoteShareService>();
                     services.AddSingleton<IDocumentImportService, ClientDocumentImportService>();
+                    services.AddSingleton<IDocumentImportService, ClientDocumentImportService>();
+
+                    services.AddSingleton<IDialogService, WpfDialogService>();
 
                     services.AddSingleton<ClientQuizService>();
                     services.AddSingleton<IQuizService>(sp => sp.GetRequiredService<ClientQuizService>());
@@ -85,8 +89,9 @@ namespace MemoSphere.WPF
                         var topicsVM = provider.GetRequiredService<TopicListViewModel>();
                         var notesVM = provider.GetRequiredService<NoteListViewModel>();
                         var questionService = provider.GetRequiredService<IQuestionService>();
+                        var dialogService = provider.GetRequiredService<IDialogService>();
 
-                        return new CrudOperationHandler(subjectService, topicService, noteService, questionService);
+                        return new CrudOperationHandler(subjectService, topicService, noteService, questionService, dialogService);
                     });
 
                     services.AddSingleton<MainViewModel>();

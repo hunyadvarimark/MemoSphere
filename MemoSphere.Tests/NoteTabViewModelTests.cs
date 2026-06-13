@@ -26,11 +26,16 @@ namespace MemoSphere.WPF.Tests
             _mockDocumentImportService = new Mock<IDocumentImportService>();
             _mockNoteShareService = new Mock<INoteShareService>();
 
+            var mockDialogService = new Mock<IDialogService>();
+            mockDialogService.Setup(d => d.AskConfirmation(It.IsAny<string>(), It.IsAny<string>()))
+                             .Returns(DialogResult.Yes);
+
             _crudHandler = new CrudOperationHandler(
                 new Mock<ISubjectService>().Object,
                 new Mock<ITopicService>().Object,
                 _mockNoteService.Object,
-                _mockQuestionService.Object
+                _mockQuestionService.Object,
+                mockDialogService.Object
             );
 
             _questionListVM = new QuestionListViewModel(_mockQuestionService.Object);

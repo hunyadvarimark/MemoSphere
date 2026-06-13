@@ -20,11 +20,17 @@ namespace MemoSphere.WPF.Tests
             _subjectServiceMock = new Mock<ISubjectService>();
             _noteShareServiceMock = new Mock<INoteShareService>();
             _viewModel = new SubjectListViewModel(_subjectServiceMock.Object, _noteShareServiceMock.Object);
+            
+            var mockDialogService = new Mock<IDialogService>();
+            mockDialogService.Setup(d => d.AskConfirmation(It.IsAny<string>(), It.IsAny<string>()))
+                             .Returns(DialogResult.Yes);
+
             _crudHandler = new CrudOperationHandler(
                 _subjectServiceMock.Object,
                 null,
                 null,
-                null
+                null,
+                mockDialogService.Object
             );
         }
 
