@@ -12,11 +12,6 @@ namespace MemoSphere.WPF.Services
         {
         }
 
-        // ==========================================
-        // EXPORTÁLÁSI FUNKCIÓK (Fájl letöltése a szerverről)
-        // ==========================================
-
-        // GET api/datashares/export/note/{noteId}
         public async Task ExportNoteToFileAsync(int noteId, string filePath)
         {
             PrepareHeaders();
@@ -58,11 +53,6 @@ namespace MemoSphere.WPF.Services
             await File.WriteAllBytesAsync(filePath, bytes);
         }
 
-        // ==========================================
-        // IMPORTÁLÁSI FUNKCIÓK (Fájl feltöltése Multipart Form-Data segítségével)
-        // ==========================================
-
-        // POST api/datashares/import/note?targetTopicId={targetTopicId}
         public async Task ImportNoteFromFileAsync(string filePath, int targetTopicId)
         {
             if (!File.Exists(filePath))
