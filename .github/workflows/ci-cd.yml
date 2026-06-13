@@ -1,0 +1,46 @@
+name: MemoSphere CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "feature/docker-backend" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    name: 🛠️ Build és WPF Unit Tesztek Futtatása
+    runs-on: windows-latest
+
+    steps:
+    - name: ⬇️ Kód lekérése a repóból
+      uses: actions/checkout@v4
+
+    - name: 🏗️ .NET SDK beállítása (.NET 9)
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: 🔄 NuGet csomagok visszaállítása (Restore)
+      run: dotnet restore MemoSphere.sln
+
+    - name: 🔨 Alkalmazás lefordítása (Build)
+      run: dotnet build MemoSphere.sln --configuration Release --no-restore
+
+    - name: 🧪 Unit tesztek futtatása (NUnit 4)
+      run: dotnet test MemoSphere.sln --configuration Release --no-build --verbosity normal
+
+  build-docker:
+    name: 🐳 Docker Image Build a Felhőben
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: ⬇️ Kód lekérése
+      uses: actions/checkout@v4
+
+    - name: 🏗️ Docker Buildx beállítása
+      uses: actions/setup-docker-buildx@v3
+
+    - name: 📦 Backend Docker Image lebuildelése
+      run: |
+        docker build -t memosphere-api:latest -f MemoSphere.Api/Dockerfile .
