@@ -63,7 +63,7 @@ namespace WPF.ViewModels.Notes
                     HasUnsavedChanges = true;
                     SaveCommand.RaiseCanExecuteChanged();
 
-                    if (!_isInEditMode)
+                    if (IsMarkdownContent)
                     {
                         IsMarkdownContent = DetectMarkdownContent(value);
                     }
@@ -545,7 +545,9 @@ namespace WPF.ViewModels.Notes
             if (string.IsNullOrWhiteSpace(content))
                 return false;
 
-            return (content.Contains("$$") && content.Contains("\\")) ||
+            bool hasLatex = content.Contains("$$") && content.Contains("\\");
+
+            return hasLatex ||
                    (content.Contains("###") && content.Length > 200) ||
                    (content.Contains("##") && content.Length > 200) ||
                    (content.Contains("**") && content.Length > 500);

@@ -393,20 +393,18 @@ namespace WPF.ViewModels
 
         private void SetupEventSubscriptions()
         {
-            // 1. Dashboard frissítés, ha változik egy témakör státusza
             TopicsVM.TopicActivationChanged += async () =>
             {
                 System.Diagnostics.Debug.WriteLine("🔄 Topic activation changed - Refreshing dashboard");
                 await DashboardVM.LoadDashboardDataAsync();
             };
 
-            // 2. Tantárgy (Subject) MENTÉSE / MÓDOSÍTÁSA
             SubjectDetailVM.SubjectSavedRequested += async subject =>
             {
                 try
                 {
                     await _crudHandler.SaveSubjectAsync(subject);
-                    await SubjectsVM.LoadSubjectsAsync(); // FRISSÍTÉS: újraolvassuk a listát a felületen
+                    await SubjectsVM.LoadSubjectsAsync();
 
                     IsAddingSubject = false;
                     IsDialogOpen = false;
@@ -418,7 +416,6 @@ namespace WPF.ViewModels
                 }
             };
 
-            // 3. Témakör (Topic) MENTÉSE / MÓDOSÍTÁSA
             TopicDetailVM.TopicSavedRequested += async topic =>
             {
                 try
@@ -426,7 +423,7 @@ namespace WPF.ViewModels
                     await _crudHandler.SaveTopicAsync(topic);
                     if (SubjectsVM.SelectedSubject != null)
                     {
-                        await TopicsVM.LoadTopicsAsync(SubjectsVM.SelectedSubject.Id); // FRISSÍTÉS
+                        await TopicsVM.LoadTopicsAsync(SubjectsVM.SelectedSubject.Id);
                     }
 
                     IsAddingTopic = false;
@@ -439,7 +436,6 @@ namespace WPF.ViewModels
                 }
             };
 
-            // 4. Tantárgy (Subject) TÖRLÉSE
             SubjectsVM.DeleteSubjectRequested += async id =>
             {
                 try
@@ -447,7 +443,7 @@ namespace WPF.ViewModels
                     bool isDeleted = await _crudHandler.DeleteSubjectAsync(id);
                     if (isDeleted)
                     {
-                        await SubjectsVM.LoadSubjectsAsync(); // FRISSÍTÉS: újraolvassuk a tárgyakat, ha sikeres a törlés
+                        await SubjectsVM.LoadSubjectsAsync();
                     }
                 }
                 catch (Exception ex)
@@ -456,7 +452,6 @@ namespace WPF.ViewModels
                 }
             };
 
-            // 5. Témakör (Topic) TÖRLÉSE
             TopicsVM.DeleteTopicRequested += async id =>
             {
                 try
@@ -466,10 +461,9 @@ namespace WPF.ViewModels
                     {
                         if (SubjectsVM.SelectedSubject != null)
                         {
-                            await TopicsVM.LoadTopicsAsync(SubjectsVM.SelectedSubject.Id); // FRISSÍTÉS
+                            await TopicsVM.LoadTopicsAsync(SubjectsVM.SelectedSubject.Id);
                         }
 
-                        // A törölt témakörhöz tartozó nyitott tabok bezárása
                         var tabsToRemove = OpenNotes.Where(t => t.Note.TopicId == id).ToList();
                         foreach (var tab in tabsToRemove)
                         {
@@ -483,7 +477,6 @@ namespace WPF.ViewModels
                 }
             };
 
-            // 6. Jegyzet (Note) TÖRLÉSE
             NotesVM.DeleteNoteRequested += async id =>
             {
                 try
@@ -511,7 +504,7 @@ namespace WPF.ViewModels
                 }
             };
 
-            // 7. Lemondás (Cancel) Események
+
             SubjectDetailVM.CancelRequested += () =>
             {
                 IsAddingSubject = false;
@@ -523,7 +516,7 @@ namespace WPF.ViewModels
                 IsDialogOpen = false;
             };
 
-            // 8. Szerkesztés (Edit) Események indítása
+
             SubjectsVM.EditSubjectRequested += subject =>
             {
                 IsDialogOpen = true;
@@ -537,27 +530,42 @@ namespace WPF.ViewModels
                 IsAddingTopic = true;
             };
 
-            // 9. UI Állapotszinkronizáció kijelöléseknél
-            SubjectsVM.SubjectSelected += _ =>
+
+            SubjectsVM.SubjectSelected += async selectedSubject =>
             {
                 IsAddingTopic = false;
                 IsAddingSubject = false;
                 OpenNotes.Clear();
                 ActiveNote = null;
+
+                if (selectedSubject != null)
+                {
+                    await TopicsVM.LoadTopicsAsync(selectedSubject.Id);
+                }
+                else
+                {
+                    TopicsVM.ClearTopics();
+                }
             };
+
             TopicsVM.PropertyChanged += async (s, e) =>
             {
                 if (e.PropertyName == nameof(TopicsVM.SelectedTopic))
                 {
                     System.Diagnostics.Debug.WriteLine($"📖 Topic changed to: {TopicsVM.SelectedTopic?.Title}");
+
                     if (TopicsVM.SelectedTopic != null)
                     {
+                        await NotesVM.LoadNotesAsync(TopicsVM.SelectedTopic.Id);
+
                         await ValidateQuestionCountAsync();
                     }
                     else
                     {
+                        NotesVM.ClearNotes();
                         HasEnoughQuestions = false;
                     }
+
                     if (IsQuizActive)
                     {
                         IsQuizActive = false;
