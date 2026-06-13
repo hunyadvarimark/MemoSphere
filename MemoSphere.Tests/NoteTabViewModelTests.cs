@@ -5,7 +5,7 @@ using Core.Interfaces.Services;
 using WPF.ViewModels.Notes;
 using WPF.ViewModels.Questions;
 
-namespace MemoSphere.Tests
+namespace MemoSphere.WPF.Tests
 {
     [TestFixture]
     public class NoteTabViewModelTests
