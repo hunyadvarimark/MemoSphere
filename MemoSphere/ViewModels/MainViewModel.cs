@@ -375,7 +375,9 @@ namespace WPF.ViewModels
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     var quizWindow = new QuizWindow(QuizVM);
+
                     quizWindow.ShowDialog();
+                    QuizVM.ResetState();
                 });
 
                 IsQuizActive = false;

@@ -1,7 +1,5 @@
 ﻿using Core.Entities;
 using Core.Interfaces.Services;
-using Microsoft.EntityFrameworkCore;
-using Data.Context;
 
 namespace Data.Services
 {
@@ -9,13 +7,11 @@ namespace Data.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IAuthService _authService;
-        private readonly IDbContextFactory<MemoSphereDbContext> _factory;
 
-        public NoteService(IUnitOfWork unitOfWork, IAuthService authService, IDbContextFactory<MemoSphereDbContext> factory)
+        public NoteService(IUnitOfWork unitOfWork, IAuthService authService)
         {
             _unitOfWork = unitOfWork;
             _authService = authService;
-            _factory = factory;
         }
 
         public async Task<Note> AddNoteAsync(Note note)
@@ -34,35 +30,24 @@ namespace Data.Services
 
             note.UserId = userId;
 
-            using var context = _factory.CreateDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-            try
+            await _unitOfWork.Notes.AddAsync(note);
+            await _unitOfWork.SaveChangesAsync();
+
+            var chunks = SplitIntoChunks(note.Content, chunkSize: 2000);
+
+            foreach (var chunkText in chunks)
             {
-                context.Notes.Add(note);
-                await context.SaveChangesAsync();
-
-                var chunks = SplitIntoChunks(note.Content, chunkSize: 2000);
-
-                foreach (var chunkText in chunks)
+                var noteChunk = new NoteChunk
                 {
-                    var noteChunk = new NoteChunk
-                    {
-                        Content = chunkText,
-                        NoteId = note.Id
-                    };
-                    context.NoteChunks.Add(noteChunk);
-                }
-
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                return note;
+                    Content = chunkText,
+                    NoteId = note.Id
+                };
+                await _unitOfWork.NoteChunks.AddAsync(noteChunk);
             }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return note;
         }
 
         public async Task<IEnumerable<Note>> GetNotesByTopicIdAsync(int topicId)
@@ -93,6 +78,7 @@ namespace Data.Services
             }
 
             _unitOfWork.Notes.Remove(noteToDelete);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task<Note> UpdateNoteAsync(Note note)
@@ -120,62 +106,51 @@ namespace Data.Services
                 noteToUpdate.TopicId = note.TopicId;
             }
 
-            using var context = _factory.CreateDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-            try
+            _unitOfWork.Notes.Update(noteToUpdate);
+
+            var existingQuestions = await _unitOfWork.Questions.GetFilteredAsync(
+                filter: q => q.SourceNoteId == note.Id,
+                includeProperties: "Answers"
+            );
+
+            if (existingQuestions.Any())
             {
-                context.Notes.Update(noteToUpdate);
+                Console.WriteLine($"🗑️ {existingQuestions.Count()} elavult kérdés törlése a jegyzethez (ID: {note.Id})");
 
-                var existingQuestions = await context.Questions
-                    .Include(q => q.Answers)
-                    .Where(q => q.SourceNoteId == note.Id)
-                    .ToListAsync();
-
-                if (existingQuestions.Any())
+                // Először a válaszokat töröljük
+                foreach (var question in existingQuestions)
                 {
-                    Console.WriteLine($"🗑️ {existingQuestions.Count} elavult kérdés törlése a jegyzethez (ID: {note.Id})");
-
-                    // Először a válaszokat töröljük
-                    foreach (var question in existingQuestions)
+                    if (question.Answers.Any())
                     {
-                        if (question.Answers.Any())
-                        {
-                            context.Answers.RemoveRange(question.Answers);
-                        }
+                        _unitOfWork.Answers.RemoveRange(question.Answers);
                     }
-
-                    // Majd a kérdéseket
-                    context.Questions.RemoveRange(existingQuestions);
                 }
 
-                var existingChunks = await context.NoteChunks.Where(nc => nc.NoteId == note.Id).ToListAsync();
-                if (existingChunks.Any())
-                {
-                    context.NoteChunks.RemoveRange(existingChunks);
-                }
-
-                var chunks = SplitIntoChunks(note.Content, chunkSize: 2000);
-                foreach (var chunkText in chunks)
-                {
-                    var noteChunk = new NoteChunk
-                    {
-                        Content = chunkText,
-                        NoteId = noteToUpdate.Id
-                    };
-                    context.NoteChunks.Add(noteChunk);
-                }
-
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                Console.WriteLine($"✅ Jegyzet frissítve (ID: {note.Id}), elavult kérdések törölve");
-                return noteToUpdate;
+                // Majd a kérdéseket
+                _unitOfWork.Questions.RemoveRange(existingQuestions);
             }
-            catch
+
+            var existingChunks = await _unitOfWork.NoteChunks.GetFilteredAsync(nc => nc.NoteId == note.Id);
+            if (existingChunks.Any())
             {
-                await transaction.RollbackAsync();
-                throw;
+                _unitOfWork.NoteChunks.RemoveRange(existingChunks);
             }
+
+            var chunks = SplitIntoChunks(note.Content, chunkSize: 2000);
+            foreach (var chunkText in chunks)
+            {
+                var noteChunk = new NoteChunk
+                {
+                    Content = chunkText,
+                    NoteId = noteToUpdate.Id
+                };
+                await _unitOfWork.NoteChunks.AddAsync(noteChunk);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+
+            Console.WriteLine($"✅ Jegyzet frissítve (ID: {note.Id}), elavult kérdések törölve");
+            return noteToUpdate;
         }
 
         private IEnumerable<string> SplitIntoChunks(string text, int chunkSize)

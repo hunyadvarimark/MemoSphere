@@ -3,7 +3,13 @@ using Core.Enums;
 using Core.Interfaces.Services;
 using Data.Context;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Data.Services
 {
@@ -12,7 +18,6 @@ namespace Data.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IQuestionGeneratorService _questionGeneratorService;
         private readonly IAuthService _authService;
-        private readonly IDbContextFactory<MemoSphereDbContext> _factory;
         private readonly IActiveLearningService _activeLearningService;
         private readonly string _modelName = "gemini-2.5-flash";
         private const int MaxChunkSizeForBatch = 3000;
@@ -21,15 +26,12 @@ namespace Data.Services
         public QuestionService(IUnitOfWork unitofWork,
             IQuestionGeneratorService questionGeneratorService,
             IAuthService authService,
-            IDbContextFactory<MemoSphereDbContext> factory,
             IActiveLearningService activeLearningService)
         {
             _unitOfWork = unitofWork;
             _questionGeneratorService = questionGeneratorService;
             _authService = authService;
-            _factory = factory;
             _activeLearningService = activeLearningService;
-
         }
 
         public async Task DeleteQuestionAsync(int id)
@@ -48,6 +50,7 @@ namespace Data.Services
             }
 
             _unitOfWork.Questions.Remove(questionToDelete);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task<bool> GenerateAndSaveQuestionsAsync(int noteId, QuestionType type)
@@ -152,7 +155,6 @@ namespace Data.Services
             {
                 int chunkSize = chunk.Content?.Length ?? 0;
 
-                // Ha a chunk önmagában túl nagy, külön dolgozzuk fel
                 if (chunkSize > MaxChunkSizeForBatch)
                 {
                     if (currentBatch.Any())
@@ -163,7 +165,6 @@ namespace Data.Services
                     }
                     result.Add(new List<NoteChunk> { chunk });
                 }
-                // Ha hozzáadva túllépné a limitet, új batch-et kezdünk
                 else if (currentBatchSize + chunkSize > MaxChunkSizeForBatch && currentBatch.Any())
                 {
                     result.Add(new List<NoteChunk>(currentBatch));
@@ -172,7 +173,6 @@ namespace Data.Services
                     currentBatch.Add(chunk);
                     currentBatchSize += chunkSize;
                 }
-                // Egyébként hozzáadjuk a jelenlegi batch-hez
                 else
                 {
                     currentBatch.Add(chunk);
@@ -327,11 +327,9 @@ namespace Data.Services
         {
             var userId = _authService.GetCurrentUserId();
 
-            using var context = _factory.CreateDbContext();
-
             // Keresünk létező statisztikát
-            var statistic = await context.QuestionStatistics
-                .FirstOrDefaultAsync(qs => qs.UserId == userId && qs.QuestionId == questionId);
+            var statistics = await _unitOfWork.QuestionStatistics.GetFilteredAsync(qs => qs.UserId == userId && qs.QuestionId == questionId);
+            var statistic = statistics.FirstOrDefault();
 
             if (statistic == null)
             {
@@ -344,7 +342,11 @@ namespace Data.Services
                     TimesCorrect = 0,
                     TimesIncorrect = 0
                 };
-                context.QuestionStatistics.Add(statistic);
+                await _unitOfWork.QuestionStatistics.AddAsync(statistic);
+            }
+            else
+            {
+                _unitOfWork.QuestionStatistics.Update(statistic);
             }
 
             // Frissítjük a statisztikát
@@ -359,11 +361,9 @@ namespace Data.Services
             }
             statistic.LastAsked = DateTime.UtcNow;
 
-            await context.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync();
 
-            var question = await context.Questions
-                .AsNoTracking()
-                .FirstOrDefaultAsync(q => q.Id == questionId);
+            var question = await _unitOfWork.Questions.GetByIdAsync(questionId);
 
             if (question != null)
             {
@@ -380,19 +380,17 @@ namespace Data.Services
         {
             var userId = _authService.GetCurrentUserId();
 
-            using var context = _factory.CreateDbContext();
-
-            var questionsQuery = context.Questions
-                .Include(q => q.Answers)
-                .Include(q => q.Topic)
-                .Where(q => q.TopicId == topicId && q.Topic.UserId == userId && q.IsActive);
-
+            Expression<Func<Question, bool>> filter = q => q.TopicId == topicId && q.Topic.UserId == userId && q.IsActive;
             if (type.HasValue)
             {
-                questionsQuery = questionsQuery.Where(q => q.QuestionType == type.Value);
+                filter = q => q.TopicId == topicId && q.Topic.UserId == userId && q.IsActive && q.QuestionType == type.Value;
             }
 
-            var allQuestions = await questionsQuery.ToListAsync();
+            var allQuestionsIterable = await _unitOfWork.Questions.GetFilteredAsync(
+                filter: filter,
+                includeProperties: "Answers,Topic"
+            );
+            var allQuestions = allQuestionsIterable.ToList();
 
             if (!allQuestions.Any())
             {
@@ -400,9 +398,10 @@ namespace Data.Services
             }
 
             var questionIds = allQuestions.Select(q => q.Id).ToList();
-            var statistics = await context.QuestionStatistics
-                .Where(qs => qs.UserId == userId && questionIds.Contains(qs.QuestionId))
-                .ToDictionaryAsync(qs => qs.QuestionId);
+            var statsList = await _unitOfWork.QuestionStatistics.GetFilteredAsync(
+                filter: qs => qs.UserId == userId && questionIds.Contains(qs.QuestionId)
+            );
+            var statistics = statsList.ToDictionary(qs => qs.QuestionId);
 
             // ✅ DEBUG LOG: Kérdések súlyai
             Console.WriteLine($"╔═══════════════════════════════════════════════════════════");
@@ -420,7 +419,7 @@ namespace Data.Services
 
                 // ✅ DEBUG LOG
                 var stat = statistics.ContainsKey(q.Id) ? statistics[q.Id] : null;
-                Console.WriteLine($"  Q{q.Id}: Weight={weight:F2} | " +
+                Console.WriteLine($"   Q{q.Id}: Weight={weight:F2} | " +
                     $"Asked={stat?.TimesAsked ?? 0} | " +
                     $"Correct={stat?.TimesCorrect ?? 0} | " +
                     $"Success={stat?.SuccessRate ?? 0:P0}");
@@ -446,7 +445,7 @@ namespace Data.Services
                     return randomValue <= cumulativeWeight;
                 });
 
-                Console.WriteLine($"  [{i + 1}] Q{selected.Question.Id} selected " +
+                Console.WriteLine($"   [{i + 1}] Q{selected.Question.Id} selected " +
                     $"(Weight: {selected.Weight:F2}, Random: {randomValue:F2}/{totalWeight:F2})");
 
                 selectedQuestions.Add(selected.Question);
@@ -489,25 +488,25 @@ namespace Data.Services
 
             return weight;
         }
+
         public async Task DeleteQuestionsForNoteAsync(int noteId)
         {
             var userId = _authService.GetCurrentUserId();
             if (userId == Guid.Empty)
                 throw new InvalidOperationException("User not authenticated");
 
-            using var context = _factory.CreateDbContext();
-
-            var questions = await context.Questions
-                .Include(q => q.Answers)
-                .Where(q => q.UserId == userId && q.SourceNoteId == noteId)
-                .ToListAsync();
+            var questionsIterable = await _unitOfWork.Questions.GetFilteredAsync(
+                filter: q => q.UserId == userId && q.SourceNoteId == noteId,
+                includeProperties: "Answers"
+            );
+            var questions = questionsIterable.ToList();
 
             if (questions.Any())
             {
                 Console.WriteLine($"🗑️ Törlés: {questions.Count} kérdés a jegyzethez (NoteId: {noteId})");
 
-                context.Questions.RemoveRange(questions);
-                await context.SaveChangesAsync();
+                _unitOfWork.Questions.RemoveRange(questions);
+                await _unitOfWork.SaveChangesAsync();
 
                 Console.WriteLine($"✅ {questions.Count} kérdés sikeresen törölve");
             }
@@ -519,36 +518,45 @@ namespace Data.Services
 
         public async Task SaveQuestionsAsync(IEnumerable<Question> questions)
         {
-            using var context = _factory.CreateDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-
             try
             {
                 foreach (var question in questions)
                 {
                     if (question.Id == 0)
                     {
-                        context.Questions.Add(question);
+                        await _unitOfWork.Questions.AddAsync(question);
                     }
                     else
                     {
-                        var existing = await context.Questions
-                            .Include(q => q.Answers)
-                            .FirstOrDefaultAsync(q => q.Id == question.Id);
+                        var existingIterable = await _unitOfWork.Questions.GetFilteredAsync(
+                            filter: q => q.Id == question.Id,
+                            includeProperties: "Answers"
+                        );
+                        var existing = existingIterable.FirstOrDefault();
 
                         if (existing != null)
                         {
-                            context.Entry(existing).CurrentValues.SetValues(question);
-                            context.Answers.RemoveRange(existing.Answers);
+                            existing.TopicId = question.TopicId;
+                            existing.Text = question.Text;
+                            existing.QuestionType = question.QuestionType;
+                            existing.SourceNoteId = question.SourceNoteId;
+                            existing.UserId = question.UserId;
+                            existing.IsActive = question.IsActive;
+
+                            _unitOfWork.Answers.RemoveRange(existing.Answers);
                             foreach (var ans in question.Answers) ans.QuestionId = question.Id;
-                            context.Answers.AddRange(question.Answers);
+                            await _unitOfWork.Answers.AddRangeAsync(question.Answers);
+
+                            _unitOfWork.Questions.Update(existing);
                         }
                     }
                 }
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await _unitOfWork.SaveChangesAsync();
             }
-            catch { await transaction.RollbackAsync(); throw; }
+            catch
+            {
+                throw;
+            }
         }
     }
 }

@@ -7,67 +7,55 @@ namespace Data.Repositories
 {
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {
-        private readonly IDbContextFactory<MemoSphereDbContext> _factory;
+        private readonly MemoSphereDbContext _context;
+        private readonly DbSet<T> _dbSet;
 
-        public GenericRepository(IDbContextFactory<MemoSphereDbContext> factory)
+        public GenericRepository(MemoSphereDbContext context)
         {
-            _factory = factory;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _dbSet = _context.Set<T>();
         }
 
         public async Task<T> GetByIdAsync(int id)
         {
-            using var context = _factory.CreateDbContext();
-            return await context.Set<T>().FindAsync(id);
+            return await _dbSet.FindAsync(id);
         }
 
         public async Task<IEnumerable<T>> GetAllAsync()
         {
-            using var context = _factory.CreateDbContext();
-            return await context.Set<T>().ToListAsync();
+            return await _dbSet.ToListAsync();
         }
 
         public async Task AddAsync(T entity)
         {
-            using var context = _factory.CreateDbContext();
-            await context.Set<T>().AddAsync(entity);
-            await context.SaveChangesAsync();
+            await _dbSet.AddAsync(entity);
         }
 
         public async Task AddRangeAsync(IEnumerable<T> entities)
         {
-            using var context = _factory.CreateDbContext();
-            await context.Set<T>().AddRangeAsync(entities);
-            await context.SaveChangesAsync();
+            await _dbSet.AddRangeAsync(entities);
         }
 
         public void Remove(T entity)
         {
-            using var context = _factory.CreateDbContext();
-            context.Set<T>().Remove(entity);
-            context.SaveChanges();
+            _dbSet.Remove(entity);
         }
 
         public void RemoveRange(IEnumerable<T> entities)
         {
-            using var context = _factory.CreateDbContext();
-            context.Set<T>().RemoveRange(entities);
-            context.SaveChanges();
+            _dbSet.RemoveRange(entities);
         }
 
         public async Task<IEnumerable<T>> GetFilteredAsync(Expression<Func<T, bool>> filter = null,
                                             Func<IQueryable<T>, IOrderedQueryable<T>> orderBy = null,
                                             string includeProperties = null)
         {
-            using var context = _factory.CreateDbContext();
-            IQueryable<T> query = context.Set<T>();
-
-            // 1. Szűrés (WHERE)
+            IQueryable<T> query = _dbSet;
             if (filter != null)
             {
                 query = query.Where(filter);
             }
 
-            // 2. Kapcsolatok Betöltése (INCLUDE)
             if (!string.IsNullOrWhiteSpace(includeProperties))
             {
                 foreach (var includeProperty in includeProperties.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
@@ -76,48 +64,38 @@ namespace Data.Repositories
                 }
             }
 
-            // 3. Rendezés (ORDER BY)
             if (orderBy != null)
             {
                 query = orderBy(query);
             }
 
-            // 4. Végrehajtás
-            return await query.Distinct().AsNoTracking().ToListAsync();  // AsNoTracking hozzáadva teljesítményért
+            return await query.Distinct().AsNoTracking().ToListAsync();
         }
 
         public async Task<bool> ExistsAsync(Expression<Func<T, bool>> predicate)
         {
-            using var context = _factory.CreateDbContext();
-            return await context.Set<T>().AnyAsync(predicate);
+            return await _dbSet.AnyAsync(predicate);
         }
 
         public void Update(T entity)
         {
-            using var context = _factory.CreateDbContext();
-            context.Set<T>().Attach(entity);
-            context.Entry(entity).State = EntityState.Modified;
-            context.SaveChanges();
+            _dbSet.Attach(entity);
+            _context.Entry(entity).State = EntityState.Modified;
         }
 
         public async Task ReloadAsync(T entity)
         {
-            using var context = _factory.CreateDbContext();
-            await context.Entry(entity).ReloadAsync();
+            await _context.Entry(entity).ReloadAsync();
         }
 
         public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         {
-            using var context = _factory.CreateDbContext();
-            return await context.Set<T>()
-                .Where(predicate)
-                .ToListAsync();
+            return await _dbSet.Where(predicate).ToListAsync();
         }
 
         public async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
         {
-            using var context = _factory.CreateDbContext();
-            return await context.Set<T>().CountAsync(predicate);
+            return await _dbSet.CountAsync(predicate);
         }
     }
 }

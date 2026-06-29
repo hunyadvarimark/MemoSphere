@@ -153,10 +153,11 @@ namespace WPF.ViewModels.Quiz
                 return;
             }
 
+            _quizVM.ResetState();
+
             _mainVM.CurrentMainView = MainViewType.Browser;
 
             await _quizVM.LoadQuizCommand.ExecuteAsync(selectedTopicIds);
-
 
             if (_quizVM.QuizItems != null && _quizVM.QuizItems.Any())
             {
@@ -165,7 +166,10 @@ namespace WPF.ViewModels.Quiz
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     var quizWindow = new QuizWindow(_quizVM);
+
                     quizWindow.ShowDialog();
+
+                    _quizVM.ResetState();
                 });
             }
             else

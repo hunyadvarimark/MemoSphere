@@ -8,7 +8,7 @@ namespace Data.Services
     {
         public static IServiceCollection AddMemoSphereServices(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddTransient<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             services.AddTransient<ISubjectService, SubjectService>();
             services.AddTransient<ITopicService, TopicService>();

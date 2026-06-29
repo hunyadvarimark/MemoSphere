@@ -74,9 +74,11 @@ namespace MemoSphere.WPF
                     services.AddSingleton<TopicDetailViewModel>();
                     services.AddSingleton<NoteDetailViewModel>();
                     services.AddSingleton<QuestionDetailViewModel>();
-                    services.AddSingleton<QuizViewModel>();
+                    
                     services.AddSingleton<DashboardViewModel>();
                     services.AddSingleton<QuizTopicSelectionViewModel>();
+
+                    services.AddSingleton<QuizViewModel>();
 
 
 

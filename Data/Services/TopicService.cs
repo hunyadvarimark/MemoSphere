@@ -2,6 +2,10 @@
 using Core.Interfaces.Services;
 using Data.Context;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Linq.Expressions;
 using static iText.StyledXmlParser.Jsoup.Select.Evaluator;
 
@@ -11,13 +15,11 @@ namespace Data.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IAuthService _authService;
-        private readonly IDbContextFactory<MemoSphereDbContext> _factory;
 
-        public TopicService(IUnitOfWork unitOfWork, IAuthService authService, IDbContextFactory<MemoSphereDbContext> factory)
+        public TopicService(IUnitOfWork unitOfWork, IAuthService authService)
         {
             _unitOfWork = unitOfWork;
             _authService = authService;
-            _factory = factory;
         }
 
         public async Task<Topic> AddTopicAsync(Topic topic)
@@ -32,7 +34,6 @@ namespace Data.Services
             if (string.IsNullOrWhiteSpace(topic.Title))
             {
                 throw new ArgumentException("A téma neve nem lehet üres.", nameof(topic));
-
             }
             if (await TopicExistsAsync(topic.Title, topic.SubjectId))
             {
@@ -57,8 +58,11 @@ namespace Data.Services
 
             await _unitOfWork.Topics.AddAsync(topic);
 
+            await _unitOfWork.SaveChangesAsync();
+
             return topic;
         }
+
         public async Task DeleteTopicAsync(int id)
         {
             var userId = _authService.GetCurrentUserId();
@@ -79,39 +83,20 @@ namespace Data.Services
                 throw new ArgumentException("A megadott témakör nem található vagy nincs jogosultság.", nameof(id));
             }
 
-            using var context = _factory.CreateDbContext();
-            await using var transaction = await context.Database.BeginTransactionAsync();
-            try
+            var notesToDelete = await _unitOfWork.Notes.FindAsync(n => n.TopicId == id && n.UserId == userId);
+            var questionsToDelete = await _unitOfWork.Questions.FindAsync(q => q.TopicId == id);
+
+            foreach (var question in questionsToDelete)
             {
-                var notesToDelete = await context.Notes
-                    .Where(n => n.TopicId == id && n.UserId == userId)
-                    .ToListAsync();
-
-                var questionsToDelete = await context.Questions
-                    .Where(q => q.TopicId == id && q.Topic.Subject.UserId == userId)
-                    .ToListAsync();
-
-                foreach (var question in questionsToDelete)
-                {
-                    var answersToDelete = await context.Answers
-                        .Where(a => a.QuestionId == question.Id)
-                        .ToListAsync();
-                    context.Answers.RemoveRange(answersToDelete);
-                }
-
-                context.Notes.RemoveRange(notesToDelete);
-                context.Questions.RemoveRange(questionsToDelete);
-
-                context.Topics.Remove(topicToDelete);
-
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                var answersToDelete = await _unitOfWork.Answers.FindAsync(a => a.QuestionId == question.Id);
+                _unitOfWork.Answers.RemoveRange(answersToDelete);
             }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+
+            _unitOfWork.Notes.RemoveRange(notesToDelete);
+            _unitOfWork.Questions.RemoveRange(questionsToDelete);
+            _unitOfWork.Topics.Remove(topicToDelete);
+
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task<Topic> UpdateTopicAsync(Topic topic)
@@ -142,6 +127,8 @@ namespace Data.Services
             }
 
             _unitOfWork.Topics.Update(topic);
+
+            await _unitOfWork.SaveChangesAsync();
 
             await _unitOfWork.Topics.ReloadAsync(topic);
 
@@ -213,6 +200,7 @@ namespace Data.Services
                              t.Subject.UserId == userId
             );
         }
+
         public async Task<Topic> GetTopicWithHierarchyAsync(int topicId)
         {
             return (await _unitOfWork.Topics.GetFilteredAsync(

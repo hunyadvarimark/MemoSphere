@@ -9,5 +9,8 @@ public interface IUnitOfWork : IDisposable
     IGenericRepository<Question> Questions { get; }
     IGenericRepository<Answer> Answers { get; }
     IGenericRepository<NoteChunk> NoteChunks { get; }
+    IGenericRepository<QuestionStatistic> QuestionStatistics { get; }
+    IGenericRepository<ActiveTopic> ActiveTopics { get; }
+    IGenericRepository<DailyProgress> DailyProgresses { get; }
     Task<int> SaveChangesAsync();
 }

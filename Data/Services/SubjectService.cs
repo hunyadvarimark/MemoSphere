@@ -52,6 +52,8 @@ namespace Data.Services
 
             await _unitOfWork.Subjects.AddAsync(subject);
 
+            await _unitOfWork.SaveChangesAsync();
+
             return subject;
         }
 
@@ -76,6 +78,8 @@ namespace Data.Services
             }
 
             _unitOfWork.Subjects.Remove(subjectToDelete);
+
+            await _unitOfWork.SaveChangesAsync();
         }
 
         // Get a subject by id
@@ -188,6 +192,9 @@ namespace Data.Services
             existing.Title = subject.Title;
 
             _unitOfWork.Subjects.Update(existing);
+
+            await _unitOfWork.SaveChangesAsync();
+
             return existing;
         }
         public async Task<Subject> GetSubjectWithHierarchyAsync(int id)
