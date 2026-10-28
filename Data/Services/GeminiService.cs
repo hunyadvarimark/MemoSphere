@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -13,18 +14,39 @@ using Core.Models;
 public class GeminiService : IQuestionGeneratorService
 {
     private readonly string _apiKey;
+    private readonly HttpClient _httpClient;
+
     private const string GeminiApiBaseUrl = "https://generativelanguage.googleapis.com/v1beta/models/";
     private const string DefaultGeminiModelName = "gemini-2.5-flash";
+    private const int MaxRetries = 3;
+    private const int InitialDelayMilliseconds = 2000;
 
-    private static readonly HttpClient _httpClient = new HttpClient
+    private static readonly HttpClient SharedHttpClient = new HttpClient
     {
         Timeout = TimeSpan.FromMinutes(2)
     };
 
-    public GeminiService(string apiKey)
+    // A meglévő regisztráció (new GeminiService(apiKey)) változtatás nélkül működik tovább.
+    public GeminiService(string apiKey) : this(apiKey, SharedHttpClient)
+    {
+    }
+
+    // Teszteléshez: mockolt HttpMessageHandlerrel felépített HttpClient adható át.
+    public GeminiService(string apiKey, HttpClient httpClient)
     {
         _apiKey = apiKey;
+        _httpClient = httpClient;
     }
+
+    // Átmeneti hiba: túlterhelés vagy szerveroldali hiba. Ezeknél van értelme újrapróbálni.
+    private static bool IsTransientStatus(HttpStatusCode status) =>
+        status == HttpStatusCode.TooManyRequests || (int)status >= 500;
+
+    // Hálózati hiba (nincs HTTP státusz) vagy időtúllépés: újrapróbálható.
+    // A 400/401/403 típusú hibák (rossz kulcs, hibás kérés) nem.
+    private static bool IsRetryableException(Exception ex) =>
+        ex is TaskCanceledException ||
+        (ex is HttpRequestException http && http.StatusCode == null);
 
     private async Task<string> CallGeminiApiAsync(string prompt, string modelNameOverride = null, bool isCleanupTask = false, bool isJsonResponse = false)
     {
@@ -60,28 +82,35 @@ public class GeminiService : IQuestionGeneratorService
         };
 
         string jsonRequest = JsonConvert.SerializeObject(requestBody);
-        string requestUrl = $"{GeminiApiBaseUrl}{actualGeminiModel}:generateContent?key={_apiKey}";
 
-        int maxRetries = 3;
-        int delayMilliseconds = 2000;
+        // Az API-kulcs fejlécben utazik, így nem kerül be az URL-be (naplók, proxyk).
+        string requestUrl = $"{GeminiApiBaseUrl}{actualGeminiModel}:generateContent";
 
-        for (int i = 0; i <= maxRetries; i++)
+        int delayMilliseconds = InitialDelayMilliseconds;
+
+        for (int attempt = 0; attempt <= MaxRetries; attempt++)
         {
             try
             {
-                var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
-                HttpResponseMessage response = await _httpClient.PostAsync(requestUrl, content);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable ||
-                    response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl)
                 {
-                    if (i < maxRetries)
+                    Content = new StringContent(jsonRequest, Encoding.UTF8, "application/json")
+                };
+                request.Headers.Add("x-goog-api-key", _apiKey);
+
+                using HttpResponseMessage response = await _httpClient.SendAsync(request);
+
+                if (IsTransientStatus(response.StatusCode))
+                {
+                    if (attempt < MaxRetries)
                     {
-                        Console.WriteLine($"⚠️ Gemini szerver túlterhelt ({response.StatusCode}). Újrapróbálkozás ({i + 1}/{maxRetries}) {delayMilliseconds}ms múlva...");
+                        Console.WriteLine($"⚠️ Gemini szerver túlterhelt ({(int)response.StatusCode}). Újrapróbálkozás ({attempt + 1}/{MaxRetries}) {delayMilliseconds} ms múlva...");
                         await Task.Delay(delayMilliseconds);
                         delayMilliseconds *= 2;
                         continue;
                     }
+
+                    throw new Exception("A Gemini API nem elérhető (túlterhelt). Próbáld újra később.");
                 }
 
                 response.EnsureSuccessStatusCode();
@@ -97,20 +126,24 @@ public class GeminiService : IQuestionGeneratorService
                         Console.WriteLine("⚠️ SAFETY filter aktiválva");
                         return string.Empty;
                     }
+                    if (finishReason == "MAX_TOKENS")
+                    {
+                        Console.WriteLine("⚠️ A válasz a maxOutputTokens korlát miatt csonkolódott, a JSON érvénytelen lehet.");
+                    }
                 }
 
                 string generatedText = geminiResponse?.candidates?[0]?.content?.parts?[0]?.text;
                 return generatedText ?? string.Empty;
             }
-            catch (Exception ex) when (i < maxRetries)
+            catch (Exception ex) when (IsRetryableException(ex) && attempt < MaxRetries)
             {
-                Console.WriteLine($"❌ Hiba a hívás során: {ex.Message}. Újrapróbálkozás...");
+                Console.WriteLine($"❌ Hálózati hiba a hívás során: {ex.Message}. Újrapróbálkozás ({attempt + 1}/{MaxRetries}) {delayMilliseconds} ms múlva...");
                 await Task.Delay(delayMilliseconds);
                 delayMilliseconds *= 2;
             }
         }
 
-        throw new Exception("A Gemini API nem elérhető (túlterhelt). Próbáld újra később.");
+        throw new Exception("A Gemini API nem elérhető. Próbáld újra később.");
     }
 
     public async Task<List<QuestionAnswerPair>> GenerateQuestionsAsync(string context, QuestionType type, string modelNameOverride = null)

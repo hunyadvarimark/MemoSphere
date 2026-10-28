@@ -22,6 +22,8 @@ public class UnitOfWork : IUnitOfWork
         Answers = new GenericRepository<Answer>(_context);
         NoteChunks = new GenericRepository<NoteChunk>(_context);
         QuestionStatistics = new GenericRepository<QuestionStatistic>(_context);
+        ActiveTopics = new GenericRepository<ActiveTopic>(_context);
+        DailyProgresses = new GenericRepository<DailyProgress>(_context);
     }
 
     public IGenericRepository<Subject> Subjects { get; private set; }

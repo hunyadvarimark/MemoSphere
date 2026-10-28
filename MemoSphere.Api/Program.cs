@@ -65,6 +65,12 @@ namespace MemoSphere.Api
             builder.Services.AddMemoSphereServices(builder.Configuration);
             builder.Services.AddScoped<Core.Interfaces.Services.IAuthService, AuthService>();
 
+            var jwtSecret = builder.Configuration["JwtSettings:SecretKey"];
+            if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
+            {
+                throw new InvalidOperationException(
+                    "A JwtSettings:SecretKey hiányzik, vagy rövidebb 32 karakternél.");
+            }
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
@@ -89,7 +95,15 @@ namespace MemoSphere.Api
                     var context = services.GetRequiredService<MemoSphereDbContext>();
 
                     Console.WriteLine("🔄 Adatbázis migrációk ellenőrzése és futtatása...");
-                    context.Database.Migrate();
+                    for (int attempt = 1, delay = 1000; ; attempt++, delay *= 2)
+                    {
+                        try { context.Database.Migrate(); break; }
+                        catch (Exception ex) when (attempt < 4)
+                        {
+                            Console.WriteLine($"Migráció sikertelen ({ex.Message}), újrapróbálkozás {delay} ms múlva...");
+                            Thread.Sleep(delay);
+                        }
+                    }
 
                     var testUserId = Guid.Parse("00000000-0000-0000-0000-000000000001");
                     var testUserExists = context.Users.Any(u => u.Id == testUserId);
